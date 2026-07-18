@@ -1337,8 +1337,8 @@
       // Canvas image uploader callback
       window.handleCanvasImageUpload = function(event) {
         const file = event.target.files[0];
+        event.target.value = ''; // allow re-selecting the same file later
         if (!file) {
-          selectTool('select');
           return;
         }
         const reader = new FileReader();
@@ -1655,6 +1655,11 @@
             const clickY = clientY - rect.top;
             pendingImageX = (clickX - panX) / scale;
             pendingImageY = (clickY - panY) / scale;
+            // Revert to the select tool immediately: some browsers never fire the
+            // file input's 'change' event when the picker is cancelled, so we can't
+            // rely on handleCanvasImageUpload to reset activeTool. If we waited,
+            // the very next canvas click would silently reopen this dialog again.
+            selectTool('select');
             document.getElementById('canvas-image-file-input').click();
             return;
           }
