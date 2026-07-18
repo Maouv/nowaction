@@ -22,11 +22,12 @@ const PROJECT_FILE = path.join(__dirname, 'project_data.json');
 // API route to SAVE project (shapes + chats) server-side
 app.post('/api/save-project', async (req, res) => {
   try {
-    const { shapes, shapeCounter, aiMessages, aiSettings } = req.body;
+    const { shapes, shapeCounter, groups, aiMessages, aiSettings } = req.body;
     
     const projectData = {
       shapes: shapes || [],
       shapeCounter: shapeCounter || { rectangle: 0, circle: 0, text: 0 },
+      groups: groups || {},
       aiMessages: aiMessages || [],
       aiSettings: aiSettings || {},
       updatedAt: new Date().toISOString()

@@ -143,12 +143,6 @@
 
         <!-- FLOATING EDIT ACTIONS BAR -->
         <div id="floating-edit-bar" class="absolute bottom-20 left-1/2 -translate-x-1/2 bg-panel/95 backdrop-blur-sm border border-border px-3 py-1.5 rounded-full flex items-center space-x-1.5 shadow-2xl z-30">
-          <button id="btn-copy-shape" onclick="copySelected()" class="p-2 text-textSec hover:text-white hover:bg-border/40 rounded-full transition-colors flex items-center justify-center cursor-pointer" title="Copy">
-            <i class="codicon codicon-copy text-xs"></i>
-          </button>
-          <button id="btn-paste-shape" onclick="pasteSelected()" class="p-2 text-textSec hover:text-white hover:bg-border/40 rounded-full transition-colors flex items-center justify-center cursor-pointer" title="Paste">
-            <i class="codicon codicon-paste text-xs"></i>
-          </button>
           <button id="btn-duplicate-shape" onclick="duplicateSelected()" class="p-2 text-textSec hover:text-white hover:bg-border/40 rounded-full transition-colors flex items-center justify-center cursor-pointer" title="Duplicate">
             <i class="codicon codicon-files text-xs"></i>
           </button>
@@ -519,6 +513,7 @@
       let panY = 0;
       let scale = 1.0;
       let shapeCounter = { rectangle: 0, circle: 0, text: 0, image: 0 };
+      let groups = {}; // groupId -> { name }
 
       // Touch & mouse (Pointer Event) parameters
       const activePointers = new Map();
@@ -643,6 +638,7 @@
         // 1. Instantly save to local browser storage
         localStorage.setItem('graps_designer_shapes_v1', JSON.stringify(shapes));
         localStorage.setItem('graps_designer_counter_v1', JSON.stringify(shapeCounter));
+        localStorage.setItem('graps_designer_groups_v1', JSON.stringify(groups));
         localStorage.setItem('graps_ai_settings_v1', JSON.stringify(aiSettings));
         localStorage.setItem('graps_ai_messages_v1', JSON.stringify(aiMessages));
 
@@ -669,6 +665,7 @@
               body: JSON.stringify({
                 shapes,
                 shapeCounter,
+                groups,
                 aiMessages,
                 aiSettings
               })
@@ -713,6 +710,7 @@
         const data = {
           shapes,
           shapeCounter,
+          groups,
           aiMessages,
           aiSettings,
           version: 'graps_v1',
@@ -741,6 +739,7 @@
             if (data.shapes && Array.isArray(data.shapes)) {
               shapes = data.shapes;
               shapeCounter = data.shapeCounter || { rectangle: shapes.filter(x => x.type === 'rectangle').length, circle: shapes.filter(x => x.type === 'circle').length, text: shapes.filter(x => x.type === 'text').length };
+              groups = data.groups || {};
               aiMessages = data.aiMessages || aiMessages;
               aiSettings = data.aiSettings || aiSettings;
               
@@ -1115,11 +1114,14 @@
 
       // Delete Shape
       function deleteShape(id) {
+        const target = shapes.find(s => s.id === id);
+        const gId = target && target.groupId;
         shapes = shapes.filter(s => s.id !== id);
         selectedShapeIds.delete(id);
         if (selectedShapeId === id) {
           selectedShapeId = selectedShapeIds.size > 0 ? Array.from(selectedShapeIds)[0] : null;
         }
+        if (gId && !shapes.some(s => s.groupId === gId)) delete groups[gId];
         saveToLocalStorage();
         render();
         updatePropertiesPanel();
@@ -1128,7 +1130,16 @@
       // Delete Selected Shapes (Bulk delete)
       window.deleteSelected = function() {
         if (selectedShapeIds.size === 0) return;
+        const affectedGroupIds = new Set(
+          Array.from(selectedShapeIds)
+            .map(id => shapes.find(s => s.id === id))
+            .filter(s => s && s.groupId)
+            .map(s => s.groupId)
+        );
         shapes = shapes.filter(s => !selectedShapeIds.has(s.id));
+        affectedGroupIds.forEach(gId => {
+          if (!shapes.some(s => s.groupId === gId)) delete groups[gId];
+        });
         selectedShapeIds.clear();
         selectedShapeId = null;
         saveToLocalStorage();
@@ -1209,10 +1220,15 @@
             cloned.y += offset;
 
             if (cloned.groupId) {
+              const originalGroupId = s.groupId;
               if (!groupMapping[cloned.groupId]) {
                 groupMapping[cloned.groupId] = 'group_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
               }
               cloned.groupId = groupMapping[cloned.groupId];
+              if (!groups[cloned.groupId]) {
+                const baseName = (groups[originalGroupId] && groups[originalGroupId].name) || 'Group';
+                groups[cloned.groupId] = { name: baseName + ' Copy' };
+              }
             }
 
             shapes.push(cloned);
@@ -1238,13 +1254,25 @@
         }
 
         const newGroupId = 'group_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
-        
+
         selectedShapeIds.forEach(id => {
           const s = shapes.find(sh => sh.id === id);
           if (s) {
             s.groupId = newGroupId;
           }
         });
+
+        // Keep group members contiguous in the z-order array so layer-tree
+        // rendering and bring-to-front/send-to-back stay consistent, even if
+        // the selected shapes were scattered across the z-order before grouping.
+        const frontMostIndex = Math.max(...Array.from(selectedShapeIds).map(id => shapes.findIndex(s => s.id === id)));
+        const members = shapes.filter(s => s.groupId === newGroupId);
+        // Position within the array AFTER group members are removed, not the original index.
+        const insertAt = shapes.slice(0, frontMostIndex).filter(s => s.groupId !== newGroupId).length;
+        shapes = shapes.filter(s => s.groupId !== newGroupId);
+        shapes.splice(insertAt, 0, ...members);
+
+        groups[newGroupId] = { name: 'Group ' + (Object.keys(groups).length + 1) };
 
         saveToLocalStorage();
         render();
@@ -1266,6 +1294,7 @@
                 ungroupCount++;
               }
             });
+            delete groups[gId];
           }
         });
 
@@ -1277,6 +1306,32 @@
         } else {
           alert("Elemen yang dipilih tidak berada dalam grup.");
         }
+      };
+
+      // Ungroup a specific group by id directly (used by the layer-tree group header button,
+      // so the user doesn't need to select the group first).
+      window.ungroupGroup = function(groupId) {
+        if (!groupId) return;
+        shapes.forEach(sh => {
+          if (sh.groupId === groupId) delete sh.groupId;
+        });
+        delete groups[groupId];
+        saveToLocalStorage();
+        render();
+        updatePropertiesPanel();
+      };
+
+      // Rename a group from the layer-tree header
+      window.renameGroup = function(groupId) {
+        if (!groupId || !groups[groupId]) return;
+        const current = groups[groupId].name || 'Group';
+        const next = prompt('Nama grup baru:', current);
+        if (next === null) return; // cancelled
+        const trimmed = next.trim();
+        if (!trimmed) return;
+        groups[groupId].name = trimmed;
+        saveToLocalStorage();
+        renderLayersList();
       };
 
       // Canvas image uploader callback
@@ -1391,28 +1446,40 @@
         }
       }
 
-      // Bring selected shape to top layer (last in array)
+      // Bring selected shape (or its whole group) to top layer (end of array)
       window.bringToFront = function(id) {
-        const index = shapes.findIndex(s => s.id === id);
-        if (index !== -1) {
+        const target = shapes.find(s => s.id === id);
+        if (!target) return;
+        if (target.groupId) {
+          const members = shapes.filter(s => s.groupId === target.groupId);
+          shapes = shapes.filter(s => s.groupId !== target.groupId);
+          shapes.push(...members);
+        } else {
+          const index = shapes.findIndex(s => s.id === id);
           const [shape] = shapes.splice(index, 1);
           shapes.push(shape);
-          saveToLocalStorage();
-          render();
-          updatePropertiesPanel();
         }
+        saveToLocalStorage();
+        render();
+        updatePropertiesPanel();
       }
 
-      // Send selected shape to bottom layer (first in array)
+      // Send selected shape (or its whole group) to bottom layer (start of array)
       window.sendToBack = function(id) {
-        const index = shapes.findIndex(s => s.id === id);
-        if (index !== -1) {
+        const target = shapes.find(s => s.id === id);
+        if (!target) return;
+        if (target.groupId) {
+          const members = shapes.filter(s => s.groupId === target.groupId);
+          shapes = shapes.filter(s => s.groupId !== target.groupId);
+          shapes.unshift(...members);
+        } else {
+          const index = shapes.findIndex(s => s.id === id);
           const [shape] = shapes.splice(index, 1);
           shapes.unshift(shape);
-          saveToLocalStorage();
-          render();
-          updatePropertiesPanel();
         }
+        saveToLocalStorage();
+        render();
+        updatePropertiesPanel();
       }
 
       window.applyFontFamily = function(fontNameWithFallback) {
@@ -2003,7 +2070,99 @@
         renderLayersList();
       }
 
-      // RENDER LAYERS LIST IN BOTH DESKTOP & MOBILE PANELS
+      // SVG icon based on shape type, used by the layer-tree rows
+      function getShapeTypeIcon(shape) {
+        if (shape.type === 'rectangle') {
+          return `
+            <svg class="w-3.5 h-3.5 text-textSec shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+            </svg>`;
+        } else if (shape.type === 'circle') {
+          return `
+            <svg class="w-3.5 h-3.5 text-textSec shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="9" />
+            </svg>`;
+        } else if (shape.type === 'text') {
+          return `
+            <svg class="w-3.5 h-3.5 text-textSec shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 7V4h16v3M12 4v16" />
+            </svg>`;
+        } else if (shape.type === 'image') {
+          return `
+            <svg class="w-3.5 h-3.5 text-textSec shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <circle cx="8.5" cy="8.5" r="1.5" />
+              <polyline points="21 15 16 10 5 21" />
+            </svg>`;
+        }
+        return '';
+      }
+
+      // Render a single shape row. `indented` = true for shapes nested under a group header.
+      function renderLayerShapeRow(shape, indented) {
+        const isSelected = selectedShapeIds.has(shape.id);
+        const activeBgClass = isSelected ? 'bg-accent/15 border-accent text-accent' : 'bg-transparent border-transparent text-text hover:bg-border/30';
+        const indentClass = indented ? 'pl-6' : 'pl-2.5';
+
+        return `
+          <div class="group flex items-center justify-between border ${indentClass} pr-1.5 py-1.5 rounded transition-all ${activeBgClass}">
+            <!-- Multi-select checkbox: adds/removes this shape from the selection -->
+            <button onclick="event.stopPropagation(); selectShape('${shape.id}', true)" class="shrink-0 mr-2 w-4 h-4 rounded border ${isSelected ? 'bg-accent border-accent' : 'border-textSec/40 bg-transparent'} flex items-center justify-center" title="Add/remove from selection">
+              ${isSelected ? `<i class="codicon codicon-check text-white" style="font-size: 10px;"></i>` : ''}
+            </button>
+            <!-- Tap to select name -->
+            <button onclick="selectShape('${shape.id}')" class="flex-1 flex items-center space-x-2.5 text-left text-xs font-mono font-medium truncate focus:outline-none">
+              ${getShapeTypeIcon(shape)}
+              <span class="truncate">${shape.name}</span>
+            </button>
+
+            <!-- Quick controls -->
+            <div class="flex items-center space-x-1.5">
+              <button onclick="event.stopPropagation(); toggleLock('${shape.id}')" class="p-1 rounded text-textSec hover:text-text hover:bg-border/50 transition-colors" title="Lock Toggle">
+                ${shape.locked ? `
+                  <i class="codicon codicon-lock text-red-500" style="font-size: 13px;"></i>
+                ` : `
+                  <i class="codicon codicon-unlock text-textSec/50 group-hover:text-textSec" style="font-size: 13px;"></i>
+                `}
+              </button>
+              <button onclick="event.stopPropagation(); deleteShape('${shape.id}')" class="p-1 rounded text-textSec hover:text-red-500 hover:bg-red-500/10 transition-colors" title="Delete">
+                <i class="codicon codicon-trash" style="font-size: 13px;"></i>
+              </button>
+            </div>
+          </div>
+        `;
+      }
+
+      // Render a group parent row: leading icon is the Ungroup action (replacing the
+      // per-shape type icon), name is renameable, followed by its member rows indented below.
+      function renderLayerGroupBlock(groupId, members) {
+        const groupInfo = groups[groupId] || { name: 'Group' };
+        const isGroupSelected = members.every(s => selectedShapeIds.has(s.id));
+
+        let html = `
+          <div class="flex items-center justify-between border pl-1.5 pr-1.5 py-1.5 rounded transition-all bg-border/20 border-border">
+            <!-- Ungroup this group -->
+            <button onclick="event.stopPropagation(); ungroupGroup('${groupId}')" class="shrink-0 mr-1.5 p-1 rounded text-textSec hover:text-accent hover:bg-border/50 transition-colors" title="Ungroup">
+              <i class="codicon codicon-references" style="font-size: 14px;"></i>
+            </button>
+            <!-- Tap name to select whole group -->
+            <button onclick="selectShape('${members[0].id}')" class="flex-1 flex items-center space-x-2 text-left text-xs font-mono font-semibold truncate focus:outline-none ${isGroupSelected ? 'text-accent' : 'text-text'}">
+              <span class="truncate">${groupInfo.name}</span>
+              <span class="px-1 bg-accent/20 text-accent text-[8px] font-mono rounded shrink-0">${members.length}</span>
+            </button>
+            <!-- Rename -->
+            <button onclick="event.stopPropagation(); renameGroup('${groupId}')" class="p-1 rounded text-textSec hover:text-text hover:bg-border/50 transition-colors" title="Rename Group">
+              <i class="codicon codicon-edit" style="font-size: 13px;"></i>
+            </button>
+          </div>
+        `;
+        members.forEach(shape => {
+          html += renderLayerShapeRow(shape, true);
+        });
+        return html;
+      }
+
+      // RENDER LAYERS LIST IN BOTH DESKTOP & MOBILE PANELS (as a tree: groups nest their members)
       function renderLayersList() {
         // Count totals
         const count = shapes.length;
@@ -2014,67 +2173,21 @@
         if (count === 0) {
           listHtml = `<div class="text-xs text-textSec font-mono text-center py-8">No layers yet</div>`;
         } else {
-          // Render reverse order (newest on top)
-          [...shapes].reverse().forEach(shape => {
-            const isSelected = selectedShapeIds.has(shape.id);
-            const activeBgClass = isSelected ? 'bg-accent/15 border-accent text-accent' : 'bg-transparent border-transparent text-text hover:bg-border/30';
-            
-            // SVG icon based on shape type
-            let shapeIcon = '';
-            if (shape.type === 'rectangle') {
-              shapeIcon = `
-                <svg class="w-3.5 h-3.5 text-textSec shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="3" y="3" width="18" height="18" rx="2" />
-                </svg>`;
-            } else if (shape.type === 'circle') {
-              shapeIcon = `
-                <svg class="w-3.5 h-3.5 text-textSec shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
-                  <circle cx="12" cy="12" r="9" />
-                </svg>`;
-            } else if (shape.type === 'text') {
-              shapeIcon = `
-                <svg class="w-3.5 h-3.5 text-textSec shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M4 7V4h16v3M12 4v16" />
-                </svg>`;
-            } else if (shape.type === 'image') {
-              shapeIcon = `
-                <svg class="w-3.5 h-3.5 text-textSec shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="3" y="3" width="18" height="18" rx="2" />
-                  <circle cx="8.5" cy="8.5" r="1.5" />
-                  <polyline points="21 15 16 10 5 21" />
-                </svg>`;
+          // Render reverse order (newest on top). Cluster grouped shapes together
+          // regardless of their actual array position, so the tree stays correct
+          // even for legacy/imported data where members might not be contiguous.
+          const reversedShapes = [...shapes].reverse();
+          const renderedGroupIds = new Set();
+
+          reversedShapes.forEach(shape => {
+            if (shape.groupId) {
+              if (renderedGroupIds.has(shape.groupId)) return; // already rendered as part of its group block
+              renderedGroupIds.add(shape.groupId);
+              const members = reversedShapes.filter(s => s.groupId === shape.groupId);
+              listHtml += renderLayerGroupBlock(shape.groupId, members);
+            } else {
+              listHtml += renderLayerShapeRow(shape, false);
             }
-
-            const groupBadge = shape.groupId ? `<span class="ml-1.5 px-1 bg-accent/20 text-accent text-[8px] font-mono rounded">GRP</span>` : '';
-
-            listHtml += `
-              <div class="group flex items-center justify-between border pl-2.5 pr-1.5 py-1.5 rounded transition-all ${activeBgClass}">
-                <!-- Multi-select checkbox: adds/removes this shape from the selection -->
-                <button onclick="event.stopPropagation(); selectShape('${shape.id}', true)" class="shrink-0 mr-2 w-4 h-4 rounded border ${isSelected ? 'bg-accent border-accent' : 'border-textSec/40 bg-transparent'} flex items-center justify-center" title="Add/remove from selection">
-                  ${isSelected ? `<i class="codicon codicon-check text-white" style="font-size: 10px;"></i>` : ''}
-                </button>
-                <!-- Tap to select name -->
-                <button onclick="selectShape('${shape.id}')" class="flex-1 flex items-center space-x-2.5 text-left text-xs font-mono font-medium truncate focus:outline-none">
-                  ${shapeIcon}
-                  <span class="truncate">${shape.name}</span>
-                  ${groupBadge}
-                </button>
-                
-                <!-- Quick controls -->
-                <div class="flex items-center space-x-1.5">
-                  <button onclick="event.stopPropagation(); toggleLock('${shape.id}')" class="p-1 rounded text-textSec hover:text-text hover:bg-border/50 transition-colors" title="Lock Toggle">
-                    ${shape.locked ? `
-                      <i class="codicon codicon-lock text-red-500" style="font-size: 13px;"></i>
-                    ` : `
-                      <i class="codicon codicon-unlock text-textSec/50 group-hover:text-textSec" style="font-size: 13px;"></i>
-                    `}
-                  </button>
-                  <button onclick="event.stopPropagation(); deleteShape('${shape.id}')" class="p-1 rounded text-textSec hover:text-red-500 hover:bg-red-500/10 transition-colors" title="Delete">
-                    <i class="codicon codicon-trash" style="font-size: 13px;"></i>
-                  </button>
-                </div>
-              </div>
-            `;
           });
         }
 
@@ -2088,7 +2201,6 @@
       function updateFloatingEditBar() {
         const hasSelection = selectedShapeIds.size > 0;
         const hasMultiSelection = selectedShapeIds.size >= 2;
-        const hasClipboard = clipboardShapes.length > 0;
         const hasGroupedSelection = Array.from(selectedShapeIds).some(id => {
           const s = shapes.find(sh => sh.id === id);
           return s && s.groupId;
@@ -2103,8 +2215,6 @@
           btn.classList.toggle('cursor-not-allowed', !enabled);
         };
 
-        setBtnState('btn-copy-shape', hasSelection);
-        setBtnState('btn-paste-shape', hasClipboard);
         setBtnState('btn-duplicate-shape', hasSelection);
         setBtnState('btn-group-shapes', hasMultiSelection);
         setBtnState('btn-ungroup-shapes', hasGroupedSelection);
@@ -2929,10 +3039,11 @@ IMPORTANT INSTRUCTIONS:
           if (response.ok) {
             const result = await response.json();
             if (result.success && result.data) {
-              const { shapes: s, shapeCounter: sc, aiMessages: am, aiSettings: as } = result.data;
+              const { shapes: s, shapeCounter: sc, groups: gr, aiMessages: am, aiSettings: as } = result.data;
               if (s && s.length > 0) {
                 shapes = s;
                 shapeCounter = sc || { rectangle: 0, circle: 0, text: 0 };
+                groups = gr || {};
                 aiMessages = am || aiMessages;
                 aiSettings = as || aiSettings;
                 loadedFromServer = true;
@@ -2961,15 +3072,19 @@ IMPORTANT INSTRUCTIONS:
         if (!loadedFromServer) {
           const saved = localStorage.getItem('graps_designer_shapes_v1');
           const savedCounter = localStorage.getItem('graps_designer_counter_v1');
+          const savedGroups = localStorage.getItem('graps_designer_groups_v1');
           
           if (saved) {
             try {
               shapes = JSON.parse(saved);
               if (savedCounter) shapeCounter = JSON.parse(savedCounter);
+              groups = savedGroups ? JSON.parse(savedGroups) : {};
             } catch (e) {
+              groups = {};
               loadDefaultShapes();
             }
           } else {
+            groups = {};
             loadDefaultShapes();
           }
 
@@ -2993,6 +3108,7 @@ IMPORTANT INSTRUCTIONS:
           // Sync local storage so it remains in sync with the server
           localStorage.setItem('graps_designer_shapes_v1', JSON.stringify(shapes));
           localStorage.setItem('graps_designer_counter_v1', JSON.stringify(shapeCounter));
+          localStorage.setItem('graps_designer_groups_v1', JSON.stringify(groups));
           localStorage.setItem('graps_ai_settings_v1', JSON.stringify(aiSettings));
           localStorage.setItem('graps_ai_messages_v1', JSON.stringify(aiMessages));
           
