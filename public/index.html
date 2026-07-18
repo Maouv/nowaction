@@ -1495,8 +1495,20 @@
       }
 
       window.addNewCustomFont = function() {
-        const nameInput = document.getElementById('new-font-name');
-        const urlInput = document.getElementById('new-font-url');
+        // NOTE: updatePropertiesPanel() renders the same contentHtml into
+        // BOTH the desktop panel and the mobile tab panel, so there are
+        // two DOM elements sharing id="new-font-name" / id="new-font-url"
+        // at the same time. document.getElementById() would silently grab
+        // whichever one appears first (often the hidden desktop copy on
+        // mobile), leaving the visible field's value ignored. Query all
+        // matches and use the one that's actually visible on screen.
+        const pickVisible = (id) => {
+          const matches = Array.from(document.querySelectorAll(`#${id}`));
+          return matches.find(el => el.offsetParent !== null) || matches[0];
+        };
+
+        const nameInput = pickVisible('new-font-name');
+        const urlInput = pickVisible('new-font-url');
         if (!nameInput || !urlInput) return;
 
         const name = nameInput.value.trim();
