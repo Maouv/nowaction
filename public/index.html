@@ -900,7 +900,7 @@
 
         let linksHtml = '';
         customFonts.forEach(font => {
-          if (usedFontNames.has(font.name)) {
+          if (usedFontNames.has(font.cssFamilyName || font.name)) {
             linksHtml += `<link rel="stylesheet" href="${font.url}">\n`;
           }
         });
@@ -984,7 +984,7 @@
           // Add Google Font import links if this text shape uses any
           if (shape.type === 'text' && shape.fontFamily) {
             const cleanName = shape.fontFamily.split(',')[0].replace(/['"]/g, '').trim();
-            const foundFont = customFonts.find(f => f.name.toLowerCase() === cleanName.toLowerCase());
+            const foundFont = customFonts.find(f => (f.cssFamilyName || f.name).toLowerCase() === cleanName.toLowerCase());
             if (foundFont) {
               compHtml += `<!-- Google Font: ${foundFont.name} -->\n<link rel="stylesheet" href="${foundFont.url}">\n\n`;
             }
@@ -1526,6 +1526,25 @@
           url = hrefMatch[1];
         }
 
+        // The CSS `font-family` value that actually works MUST match the name
+        // Google Fonts declares inside the stylesheet — which comes from the
+        // `family=` query param, not whatever label the user types (e.g.
+        // typing "rubik" for a "Rubik Mono One" URL would silently fail to
+        // render, falling back to sans-serif, since 'rubik' matches nothing).
+        // Auto-extract the real family name from the URL and use that for
+        // the actual CSS value, while keeping the user's typed text as the
+        // display label in the font library list.
+        let cssFamilyName = name;
+        try {
+          const familyParam = new URL(url).searchParams.get('family');
+          if (familyParam) {
+            // family can be like "Rubik+Mono+One:wght@400;700" — strip variants
+            cssFamilyName = familyParam.split(':')[0].replace(/\+/g, ' ').trim() || name;
+          }
+        } catch (e) {
+          // Not a parseable URL (e.g. relative path) — fall back to typed name
+        }
+
         // Add to list if not already existing
         const exists = customFonts.some(f => f.name.toLowerCase() === name.toLowerCase());
         if (exists) {
@@ -1533,7 +1552,7 @@
           return;
         }
 
-        customFonts.push({ name, url });
+        customFonts.push({ name, url, cssFamilyName });
         localStorage.setItem('graps_custom_fonts', JSON.stringify(customFonts));
         
         // Dynamically append stylesheet to head immediately
@@ -1543,23 +1562,30 @@
         if (selectedShapeId) {
           const shape = shapes.find(s => s.id === selectedShapeId);
           if (shape && shape.type === 'text') {
-            shape.fontFamily = `'${name}', sans-serif`;
+            shape.fontFamily = `'${cssFamilyName}', sans-serif`;
             saveToLocalStorage();
           }
         }
 
         render();
         updatePropertiesPanel();
+
+        if (cssFamilyName.toLowerCase() !== name.toLowerCase()) {
+          console.log(`Font "${name}" registered using actual CSS family name "${cssFamilyName}" (auto-detected from URL).`);
+        }
       }
 
       window.deleteCustomFont = function(name) {
+        const removedFont = customFonts.find(f => f.name === name);
+        const cssFamily = removedFont ? (removedFont.cssFamilyName || removedFont.name) : name;
+
         customFonts = customFonts.filter(f => f.name !== name);
         localStorage.setItem('graps_custom_fonts', JSON.stringify(customFonts));
         loadAllCustomFonts();
         
         // Reset shapes that were using this font family back to sans-serif
         shapes.forEach(shape => {
-          if (shape.type === 'text' && shape.fontFamily && shape.fontFamily.includes(name)) {
+          if (shape.type === 'text' && shape.fontFamily && shape.fontFamily.includes(cssFamily)) {
             shape.fontFamily = 'sans-serif';
           }
         });
@@ -2411,10 +2437,11 @@
                   
                   <!-- Dynamic loaded Google Fonts -->
                   ${customFonts.map(font => {
-                    const isSelected = shape.fontFamily && (shape.fontFamily.startsWith(`'${font.name}'`) || shape.fontFamily.startsWith(font.name) || shape.fontFamily.includes(font.name));
+                    const cssFamily = font.cssFamilyName || font.name;
+                    const isSelected = shape.fontFamily && (shape.fontFamily.startsWith(`'${cssFamily}'`) || shape.fontFamily.startsWith(cssFamily) || shape.fontFamily.includes(cssFamily));
                     return `
                       <div class="relative group inline-flex">
-                        <button onclick="applyFontFamily('\\'${font.name}\\', sans-serif')" class="px-2 py-1 text-[10px] rounded transition-all ${isSelected ? 'bg-accent text-white font-bold shadow' : 'bg-[#0c0c0c] text-textSec border border-border/40 hover:bg-[#161616]'}" style="font-family: '${font.name}', sans-serif;">
+                        <button onclick="applyFontFamily('\\'${cssFamily}\\', sans-serif')" class="px-2 py-1 text-[10px] rounded transition-all ${isSelected ? 'bg-accent text-white font-bold shadow' : 'bg-[#0c0c0c] text-textSec border border-border/40 hover:bg-[#161616]'}" style="font-family: '${cssFamily}', sans-serif;">
                           ${font.name}
                         </button>
                         <button onclick="deleteCustomFont('${font.name}')" class="absolute -top-1 -right-1 hidden group-hover:flex w-3.5 h-3.5 bg-red-500 hover:bg-red-600 rounded-full items-center justify-center text-white text-[9px] font-bold shadow transition-all" title="Delete Font">
