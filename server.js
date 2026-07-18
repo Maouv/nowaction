@@ -180,7 +180,12 @@ app.post('/api/ai-proxy', async (req, res) => {
       const openAiBody = {
         model: model || process.env.OPENAI_MODEL || 'gpt-4o-mini',
         messages: messages,
-        temperature: 0.7
+        temperature: 0.7,
+        // Force non-streaming: some OpenAI-compatible local servers (llama.cpp,
+        // vLLM, LM Studio, etc.) default to SSE streaming even without a
+        // stream flag, which breaks response.json() with
+        // "Unexpected non-whitespace character after JSON..."
+        stream: false
       };
 
       // Ensure v1 endpoint is appended correctly
@@ -201,12 +206,99 @@ app.post('/api/ai-proxy', async (req, res) => {
         body: JSON.stringify(openAiBody)
       });
 
+      // Read as text first so we can handle non-JSON / SSE-formatted bodies
+      // gracefully instead of throwing an opaque SyntaxError.
+      const rawText = await response.text();
+
       if (!response.ok) {
-        const errorText = await response.text();
-        return res.status(response.status).json({ error: errorText });
+        return res.status(response.status).json({ error: rawText });
       }
 
-      const data = await response.json();
+      let data;
+      try {
+        data = JSON.parse(rawText);
+      } catch (parseErr) {
+        // Fallback: some local servers still stream SSE ("data: {...}\n\n")
+        // even when stream:false is sent. Try to parse it as SSE and stitch
+        // together the last full chat-completion chunk, or the concatenated
+        // delta content if it's a stream of deltas.
+        const dataLines = rawText
+          .split('\n')
+          .map(l => l.trim())
+          .filter(l => l.startsWith('data:') && l.slice(5).trim() !== '[DONE]');
+
+        if (dataLines.length > 0) {
+          try {
+            const chunks = dataLines.map(l => JSON.parse(l.slice(5).trim()));
+            const lastChunk = chunks[chunks.length - 1];
+
+            if (lastChunk.choices && lastChunk.choices[0] && lastChunk.choices[0].message) {
+              // Non-delta JSON objects sent line by line — just use the last one.
+              data = lastChunk;
+            } else {
+              // Streamed deltas — reassemble the full message content.
+              const content = chunks
+                .map(c => c.choices?.[0]?.delta?.content || '')
+                .join('');
+              data = {
+                choices: [{ message: { role: 'assistant', content } }]
+              };
+            }
+          } catch (sseErr) {
+            console.error('AI Proxy Error: failed to parse SSE fallback', sseErr);
+            return res.status(502).json({
+              error: `Upstream returned a non-JSON response the proxy could not parse: ${parseErr.message}`
+            });
+          }
+        } else {
+          console.error('AI Proxy Error: response was not valid JSON', parseErr);
+          return res.status(502).json({
+            error: `Upstream returned a non-JSON response the proxy could not parse: ${parseErr.message}`
+          });
+        }
+      }
+
+      // Debug: log the raw upstream shape so we can see what the local
+      // OpenAI-compatible server actually returns if the frontend still
+      // says "Sorry, I did not receive a valid response."
+      console.log('Upstream OpenAI-compatible response (truncated):', JSON.stringify(data).slice(0, 500));
+
+      // Some gateways/proxies wrap the actual OpenAI-shaped payload inside
+      // an extra top-level "data" envelope: { data: { choices: [...] } }.
+      // Unwrap it if present so the rest of the normalization logic works.
+      if (!data?.choices && data?.data?.choices) {
+        data = data.data;
+      }
+
+      // Normalize alternate response shapes into the standard
+      // { choices: [{ message: { role, content } }] } shape the frontend expects.
+      const hasStandardShape = data?.choices?.[0]?.message?.content !== undefined;
+
+      if (!hasStandardShape && data?.choices?.[0]) {
+        const choice = data.choices[0];
+        let content;
+
+        if (typeof choice.text === 'string') {
+          // Legacy /v1/completions style
+          content = choice.text;
+        } else if (choice.delta && typeof choice.delta.content === 'string') {
+          // Single streaming delta chunk that slipped through as JSON
+          content = choice.delta.content;
+        } else if (typeof choice.message === 'string') {
+          content = choice.message;
+        }
+
+        if (content !== undefined) {
+          data = { choices: [{ message: { role: 'assistant', content } }] };
+        }
+      } else if (!hasStandardShape && typeof data?.message?.content === 'string') {
+        // Ollama-native /api/chat style: { message: { role, content } }
+        data = { choices: [{ message: { role: 'assistant', content: data.message.content } }] };
+      } else if (!hasStandardShape && typeof data?.response === 'string') {
+        // Ollama-native /api/generate style: { response: "..." }
+        data = { choices: [{ message: { role: 'assistant', content: data.response } }] };
+      }
+
       return res.json(data);
     }
   } catch (error) {
@@ -224,4 +316,3 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
 });
-
