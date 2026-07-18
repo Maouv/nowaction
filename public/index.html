@@ -1,0 +1,3013 @@
+<!doctype html>
+<html lang="en" class="h-full bg-bg text-text selection:bg-accent/30 selection:text-white">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>NOWACTION — Mobile-First Minimal Design Tool</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <!-- VS Code Codicons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@vscode/codicons/dist/codicon.css">
+    
+    <!-- JSZip Library for packaging zips in-browser -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              bg: '#0B0B0C',
+              panel: '#121214',
+              border: '#1F1F23',
+              text: '#EEEEEE',
+              textSec: '#9CA3AF',
+              accent: '#0066cc',
+            },
+            fontFamily: {
+              sans: ['"Space Grotesk"', 'Inter', 'sans-serif'],
+              inter: ['Inter', 'sans-serif'],
+              mono: ['JetBrains Mono', 'monospace'],
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      /* Prevent scrolling on viewport to make canvas-drag feel like native app */
+      html, body {
+        overflow: hidden;
+        overscroll-behavior: none;
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-tap-highlight-color: transparent;
+        touch-action: none;
+      }
+      
+      #canvas-viewport {
+        touch-action: none;
+      }
+      
+      /* Subtle CSS grid pattern */
+      .canvas-grid {
+        background-image: radial-gradient(#262626 1px, transparent 1px);
+        background-size: 20px 20px;
+      }
+      
+      /* Input style overrides for standard look */
+      input[type="number"]::-webkit-outer-spin-button,
+      input[type="number"]::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+      }
+      input[type="number"] {
+        -moz-appearance: textfield;
+      }
+    </style>
+  </head>
+  <body class="h-full flex flex-col font-sans bg-bg">
+
+    <!-- TOP NAV HEADER -->
+    <header class="h-14 border-b border-border bg-panel flex items-center justify-between px-4 z-40 shrink-0">
+      <div class="flex items-center space-x-2">
+        <span class="font-sans font-bold text-accent tracking-wide text-2xl">NOWACTION</span>
+        <span class="hidden md:inline-block text-xs bg-border px-1.5 py-0.5 rounded text-textSec font-mono font-semibold uppercase">Mobile Spec</span>
+      </div>
+      
+      <!-- Center stats: zoom, coordinates -->
+      <div class="flex items-center space-x-3">
+        <button id="btn-reset-view" class="flex items-center space-x-1.5 px-2.5 py-1 bg-border hover:bg-[#303030] text-xs font-mono rounded text-text transition-colors" title="Reset View to 100%">
+          <span id="zoom-display">100%</span>
+          <i class="codicon codicon-screen-normal text-[10px] text-textSec"></i>
+        </button>
+      </div>
+
+      <!-- Action: AI Copilot & Export buttons -->
+      <div class="flex items-center space-x-2">
+        <button id="btn-ai-copilot-toggle" class="hidden md:flex items-center space-x-1.5 px-3 py-1.5 bg-accent/15 hover:bg-accent/25 border border-accent/40 text-accent text-xs font-semibold rounded-full transition-all duration-300 relative cursor-pointer" title="Toggle AI Copilot Sidebar">
+          <i class="codicon codicon-sparkle text-xs"></i>
+          <span>AI Copilot</span>
+        </button>
+
+        <button id="btn-export-top" class="flex items-center space-x-1.5 px-3.5 py-1.5 bg-accent hover:bg-accent/90 text-xs font-semibold rounded text-white transition-colors">
+          <i class="codicon codicon-export text-xs"></i>
+          <span>Export</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- MAIN RESPONSIVE CONTAINER -->
+    <div class="flex-1 flex flex-col md:flex-row min-h-0 relative">
+      
+      <!-- DESKTOP LEFT PANEL: LAYERS -->
+      <aside class="hidden md:flex w-72 border-r border-border bg-panel flex-col min-h-0 shrink-0">
+        <div class="p-4 border-b border-border flex items-center justify-between">
+          <h2 class="text-xs font-mono font-bold text-textSec uppercase tracking-wider">Layers List</h2>
+          <span id="layers-count-desktop" class="text-xs font-mono text-textSec bg-border px-1.5 py-0.5 rounded">0</span>
+        </div>
+        <!-- Scrollable layer list container -->
+        <div id="layer-list-desktop" class="flex-1 overflow-y-auto p-2 space-y-1">
+          <!-- Rendered dynamically -->
+        </div>
+        <div class="p-4 border-t border-border bg-bg/50">
+          <p class="text-[10px] font-mono text-textSec leading-normal">
+            Drag canvas with 1 finger.<br>
+            Pinch to zoom with 2 fingers.<br>
+            Double-tap text to edit content.
+          </p>
+        </div>
+      </aside>
+
+      <!-- CANVAS VIEWPORT & TOOLBAR (CENTER) -->
+      <main class="flex-1 flex flex-col relative min-h-0 bg-bg">
+        
+         <!-- CANVAS VIEWPORT CONTAINER -->
+        <div id="canvas-viewport" class="flex-1 relative overflow-hidden outline-none cursor-grab active:cursor-grabbing" tabindex="0">
+          
+          <!-- TRANSFORMABLE CANVAS WORLD -->
+          <div id="canvas-world" class="absolute inset-0 canvas-grid transform-gpu origin-top-left pointer-events-none select-none">
+            <!-- Central origin visual indicator -->
+            <div class="absolute left-[-15px] top-0 w-[30px] h-px bg-border/50 pointer-events-none"></div>
+            <div class="absolute left-0 top-[-15px] w-px h-[30px] bg-border/50 pointer-events-none"></div>
+            <!-- Dynamic elements go here -->
+          </div>
+
+          <input type="file" id="canvas-image-file-input" accept="image/*" class="hidden" onchange="handleCanvasImageUpload(event)" />
+        </div>
+
+        <!-- FLOATING EDIT ACTIONS BAR -->
+        <div id="floating-edit-bar" class="absolute bottom-20 left-1/2 -translate-x-1/2 bg-panel/95 backdrop-blur-sm border border-border px-3 py-1.5 rounded-full flex items-center space-x-1.5 shadow-2xl z-30">
+          <button id="btn-copy-shape" onclick="copySelected()" class="p-2 text-textSec hover:text-white hover:bg-border/40 rounded-full transition-colors flex items-center justify-center cursor-pointer" title="Copy">
+            <i class="codicon codicon-copy text-xs"></i>
+          </button>
+          <button id="btn-paste-shape" onclick="pasteSelected()" class="p-2 text-textSec hover:text-white hover:bg-border/40 rounded-full transition-colors flex items-center justify-center cursor-pointer" title="Paste">
+            <i class="codicon codicon-paste text-xs"></i>
+          </button>
+          <button id="btn-duplicate-shape" onclick="duplicateSelected()" class="p-2 text-textSec hover:text-white hover:bg-border/40 rounded-full transition-colors flex items-center justify-center cursor-pointer" title="Duplicate">
+            <i class="codicon codicon-files text-xs"></i>
+          </button>
+          
+          <div class="w-px h-5 bg-border mx-1"></div>
+          
+          <button id="btn-group-shapes" onclick="groupSelectedShapes()" class="p-2 text-textSec hover:text-white hover:bg-border/40 rounded-full transition-colors flex items-center justify-center cursor-pointer" title="Group Selected">
+            <i class="codicon codicon-package text-xs"></i>
+          </button>
+          <button id="btn-ungroup-shapes" onclick="ungroupSelectedShapes()" class="p-2 text-textSec hover:text-white hover:bg-border/40 rounded-full transition-colors flex items-center justify-center cursor-pointer" title="Ungroup Selected">
+            <i class="codicon codicon-references text-xs"></i>
+          </button>
+          
+          <div class="w-px h-5 bg-border mx-1"></div>
+          
+          <button id="btn-delete-selected" onclick="deleteSelected()" class="p-2 text-textSec hover:text-red-500 hover:bg-red-500/10 rounded-full transition-colors flex items-center justify-center cursor-pointer" title="Delete Selected (Del)">
+            <i class="codicon codicon-trash text-xs"></i>
+          </button>
+        </div>
+
+        <!-- FLOATING TOOLBAR -->
+        <div class="absolute bottom-4 left-1/2 -translate-x-1/2 bg-panel/95 backdrop-blur-sm border border-border px-2 py-1.5 rounded-full flex items-center space-x-1 shadow-2xl z-30">
+          <button id="tool-select" class="tool-btn p-2.5 rounded-full text-accent bg-accent/10 hover:text-white transition-colors" title="Select / Pan (S)">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" />
+              <path d="M13 13l6 6" />
+            </svg>
+          </button>
+          
+          <div class="w-px h-5 bg-border mx-1"></div>
+          
+          <button id="tool-rectangle" class="tool-btn p-2.5 rounded-full text-textSec hover:text-text transition-colors" title="Rectangle (R)">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+            </svg>
+          </button>
+          
+          <button id="tool-circle" class="tool-btn p-2.5 rounded-full text-textSec hover:text-text transition-colors" title="Circle (C)">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="9" />
+            </svg>
+          </button>
+          
+          <button id="tool-text" class="tool-btn p-2.5 rounded-full text-textSec hover:text-text transition-colors" title="Text (T)">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 7V4h16v3M12 4v16M9 20h6" />
+            </svg>
+          </button>
+
+          <button id="tool-image" class="tool-btn p-2.5 rounded-full text-textSec hover:text-text transition-colors" title="Image (I)">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <circle cx="8.5" cy="8.5" r="1.5" />
+              <polyline points="21 15 16 10 5 21" />
+            </svg>
+          </button>
+        </div>
+
+      </main>
+
+      <!-- DESKTOP RIGHT PANEL: PROPERTIES -->
+      <aside class="hidden md:flex w-80 border-l border-border bg-panel flex-col min-h-0 shrink-0 overflow-y-auto">
+        <div class="p-4 border-b border-border">
+          <h2 class="text-xs font-mono font-bold text-textSec uppercase tracking-wider">Properties</h2>
+        </div>
+        
+        <!-- Properties content container -->
+        <div id="properties-panel-desktop" class="p-4 space-y-4">
+          <!-- Rendered dynamically depending on selection -->
+        </div>
+      </aside>
+
+      <!-- DESKTOP RIGHT PANEL 2: AI COPILOT -->
+      <aside id="ai-chat-sidebar" class="hidden md:flex w-80 border-l border-border bg-panel flex-col min-h-0 shrink-0 relative">
+        <!-- AI Header -->
+        <div class="p-4 border-b border-border flex items-center justify-between bg-[#141416]">
+          <div class="flex items-center space-x-2">
+            <span class="text-xs font-mono font-bold text-accent uppercase tracking-wider">AI Copilot</span>
+            <span class="text-[9px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1 py-0.2 rounded font-mono">BYOK</span>
+          </div>
+          <div class="flex items-center space-x-1.5">
+            <button id="btn-ai-settings-toggle" class="p-1.5 text-textSec hover:text-text hover:bg-border rounded transition-all cursor-pointer" title="AI Settings">
+              <i class="codicon codicon-gear text-sm"></i>
+            </button>
+            <button id="btn-ai-sidebar-close" class="p-1.5 text-textSec hover:text-text hover:bg-border rounded transition-all cursor-pointer" title="Hide Sidebar">
+              <i class="codicon codicon-close text-sm"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- AI Settings View -->
+        <div id="ai-settings-panel" class="hidden border-b border-border bg-[#141416] p-4 space-y-3 shrink-0">
+          <div class="text-xs font-mono font-bold text-accent mb-1 uppercase tracking-wide">AI Provider API (BYOK)</div>
+          
+          <div>
+            <label class="text-[9px] font-mono text-textSec uppercase tracking-wider block mb-1">Provider</label>
+            <select id="ai-provider-select" class="bg-bg border border-border text-text font-mono text-xs rounded px-2.5 py-1.5 focus:outline-none focus:border-accent w-full">
+              <option value="gemini">Google Gemini (Default)</option>
+              <option value="openai">OpenAI-Compatible (v1)</option>
+              <option value="anthropic">Anthropic Claude</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="text-[9px] font-mono text-textSec uppercase tracking-wider block mb-1">API Key</label>
+            <input id="ai-api-key-input" type="password" placeholder="Leave blank if using server-side .env" class="bg-bg border border-border text-text font-mono text-xs rounded px-2.5 py-1.5 focus:outline-none focus:border-accent w-full" />
+            <span class="text-[8px] text-textSec font-mono mt-0.5 block leading-tight">Leave blank to use the API key from your server-side .env (e.g. Gemini).</span>
+          </div>
+
+          <div>
+            <label class="text-[9px] font-mono text-textSec uppercase tracking-wider block mb-1">Base URL (optional)</label>
+            <input id="ai-base-url-input" type="text" placeholder="https://api.openai.com/v1" class="bg-bg border border-border text-text font-mono text-xs rounded px-2.5 py-1.5 focus:outline-none focus:border-accent w-full" />
+            <span class="text-[8px] text-textSec font-mono mt-0.5 block leading-tight">Leave blank to use default routed proxy.</span>
+          </div>
+
+          <div>
+            <label class="text-[9px] font-mono text-textSec uppercase tracking-wider block mb-1">Model ID</label>
+            <input id="ai-model-input" type="text" placeholder="Leave blank to use server .env" class="bg-bg border border-border text-text font-mono text-xs rounded px-2.5 py-1.5 focus:outline-none focus:border-accent w-full" />
+          </div>
+
+          <button id="btn-save-ai-settings" class="w-full py-1.5 bg-accent hover:bg-accent/90 text-white font-mono text-xs rounded transition-colors font-semibold shadow-md cursor-pointer">
+            Save Configuration
+          </button>
+        </div>
+
+        <!-- Scrollable Messages List -->
+        <div id="ai-messages-list" class="flex-1 overflow-y-auto p-4 space-y-3 flex flex-col min-h-0 bg-[#121214]">
+          <!-- Rendered dynamically -->
+        </div>
+
+        <!-- Chat Input Footer -->
+        <div class="p-3 border-t border-border bg-[#141416] shrink-0 flex flex-col space-y-2">
+          <!-- Image preview container -->
+          <div id="ai-chat-image-preview" class="hidden relative self-start p-1 bg-border/20 rounded border border-border">
+            <img id="ai-chat-image-preview-img" src="" class="h-10 w-10 object-cover rounded" />
+            <button onclick="clearAttachedImage()" class="absolute -top-1 -right-1 bg-red-500 hover:bg-red-600 rounded-full w-4 h-4 flex items-center justify-center text-white text-[9px] font-bold shadow" title="Remove attached image">&times;</button>
+          </div>
+
+          <div class="relative flex items-end">
+            <textarea id="ai-chat-input" rows="2" placeholder="Ask AI assistant..." class="bg-[#0B0B0C] border border-border text-text text-xs rounded-lg px-3 py-2 pr-16 focus:outline-none focus:border-accent w-full resize-none leading-relaxed" style="max-height: 120px;"></textarea>
+            <button id="btn-ai-attach-image" class="absolute right-9 bottom-2 p-1.5 text-textSec hover:text-text rounded-md transition-colors cursor-pointer" title="Attach image to AI prompt" onclick="document.getElementById('ai-image-uploader').click()">
+              <i class="codicon codicon-device-camera text-xs"></i>
+            </button>
+            <input id="ai-image-uploader" type="file" accept="image/*" class="hidden" onchange="handleAiImageAttachment(event)" />
+            <button id="btn-ai-send" class="absolute right-2 bottom-2 p-1.5 bg-accent hover:bg-accent/90 text-white rounded-md transition-colors cursor-pointer" title="Send message">
+              <i class="codicon codicon-send text-xs text-white"></i>
+            </button>
+          </div>
+        </div>
+      </aside>
+
+    </div>
+
+    <!-- MOBILE BOTTOM PANEL (COLLAPSIBLE TABS) -->
+    <div class="md:hidden border-t border-border bg-panel flex flex-col shrink-0 z-40">
+      
+      <!-- Tabs content: fixed height to preserve canvas space -->
+      <div class="h-64 overflow-y-auto border-b border-border bg-panel relative">
+        
+        <!-- Mobile Layers Panel -->
+        <div id="mobile-tab-layers" class="tab-panel p-4 space-y-1 h-full">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-mono font-bold text-textSec uppercase tracking-wider">Layers</span>
+            <span id="layers-count-mobile" class="text-xs font-mono text-textSec bg-border px-1.5 py-0.5 rounded">0</span>
+          </div>
+          <div id="layer-list-mobile" class="space-y-1">
+            <!-- Dynamic Mobile Layer List -->
+          </div>
+        </div>
+
+        <!-- Mobile Properties Panel -->
+        <div id="mobile-tab-properties" class="tab-panel hidden p-4 space-y-4 h-full">
+          <!-- Dynamic Mobile Properties -->
+        </div>
+
+        <!-- Mobile Export Panel -->
+        <div id="mobile-tab-export" class="tab-panel hidden p-4 space-y-2 h-full flex flex-col">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-mono font-bold text-textSec uppercase tracking-wider">Export Spec</span>
+            <div class="flex space-x-1">
+              <button id="btn-select-all-mobile" class="px-2 py-0.5 bg-border hover:bg-[#303030] text-[9px] font-mono rounded text-text transition-colors">
+                Select
+              </button>
+              <button id="btn-copy-mobile" class="px-2 py-0.5 bg-accent hover:bg-accent/90 text-[9px] font-mono rounded text-white transition-colors">
+                Copy
+              </button>
+            </div>
+          </div>
+          <textarea id="export-code-mobile" readonly class="flex-1 w-full p-1.5 bg-[#0a0a0a] border border-border text-textSec font-mono text-[9px] rounded resize-none focus:outline-none focus:border-accent" placeholder="Press Export inside App..."></textarea>
+          
+          <div class="grid grid-cols-2 gap-2 mt-1 shrink-0">
+            <button id="btn-download-html-mobile" class="py-1.5 bg-emerald-600 hover:bg-emerald-700 text-[10px] font-semibold rounded text-white flex items-center justify-center space-x-1">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1M8 12l4 4m0 0l4-4m-4 4V4" />
+              </svg>
+              <span>Download HTML</span>
+            </button>
+            <button id="btn-download-zip-mobile" class="py-1.5 bg-amber-600 hover:bg-amber-700 text-[10px] font-semibold rounded text-white flex items-center justify-center space-x-1">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+              </svg>
+              <span>Download ZIP</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Mobile AI Chat Panel -->
+        <div id="mobile-tab-ai" class="tab-panel hidden p-4 space-y-2 h-full flex flex-col bg-bg">
+          <div class="flex items-center justify-between mb-1 pb-1 border-b border-border/40 shrink-0">
+            <div class="flex items-center space-x-2">
+              <span class="text-xs font-mono font-bold text-accent uppercase tracking-wider">AI Copilot</span>
+              <span class="text-[9px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1 py-0.2 rounded font-mono">BYOK</span>
+            </div>
+            <button id="btn-ai-settings-toggle-mobile" class="p-1 text-textSec hover:text-text rounded transition-all cursor-pointer" title="AI Settings">
+              <i class="codicon codicon-gear text-sm"></i>
+            </button>
+          </div>
+          
+          <!-- Shared Settings View (Collapsible) -->
+          <div id="ai-settings-panel-mobile" class="hidden bg-[#141416] border border-border/40 p-2.5 rounded space-y-2 shrink-0">
+            <div class="text-[10px] font-mono font-bold text-accent uppercase tracking-wide">AI Settings (BYOK)</div>
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="text-[8px] font-mono text-textSec uppercase block mb-0.5">Provider</label>
+                <select id="ai-provider-select-mobile" class="bg-bg border border-border text-text font-mono text-[10px] rounded px-1.5 py-1 focus:outline-none focus:border-accent w-full">
+                  <option value="gemini">Google Gemini (Default)</option>
+                  <option value="openai">OpenAI (v1)</option>
+                  <option value="anthropic">Anthropic</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-[8px] font-mono text-textSec uppercase block mb-0.5">Model</label>
+                <input id="ai-model-input-mobile" type="text" placeholder="gemini-2.5-flash" class="bg-bg border border-border text-text font-mono text-[10px] rounded px-1.5 py-1 focus:outline-none focus:border-accent w-full" />
+              </div>
+            </div>
+            <div>
+              <label class="text-[8px] font-mono text-textSec uppercase block mb-0.5">API Key</label>
+              <input id="ai-api-key-input-mobile" type="password" placeholder="Leave blank if using server-side .env" class="bg-bg border border-border text-text font-mono text-[10px] rounded px-1.5 py-1 focus:outline-none focus:border-accent w-full" />
+            </div>
+            <div>
+              <label class="text-[8px] font-mono text-textSec uppercase block mb-0.5">Base URL (optional)</label>
+              <input id="ai-base-url-input-mobile" type="text" placeholder="https://..." class="bg-bg border border-border text-text font-mono text-[10px] rounded px-1.5 py-1 focus:outline-none focus:border-accent w-full" />
+            </div>
+            <button id="btn-save-ai-settings-mobile" class="w-full py-1 bg-accent hover:bg-accent/90 text-white font-mono text-[10px] rounded transition-colors font-semibold cursor-pointer">
+              Save Configuration
+            </button>
+          </div>
+
+          <!-- Mobile Message history -->
+          <div id="ai-messages-list-mobile" class="flex-1 overflow-y-auto p-2 space-y-2 flex flex-col min-h-0 bg-[#121214] rounded border border-border/40">
+            <!-- Rendered dynamically -->
+          </div>
+
+          <!-- Mobile Input area -->
+          <div class="flex flex-col shrink-0 pt-1 space-y-1.5 w-full">
+            <!-- Mobile Image preview container -->
+            <div id="ai-chat-image-preview-mobile" class="hidden relative self-start p-1 bg-border/20 rounded border border-border">
+              <img id="ai-chat-image-preview-img-mobile" src="" class="h-8 w-8 object-cover rounded" />
+              <button onclick="clearAttachedImageMobile()" class="absolute -top-1 -right-1 bg-red-500 hover:bg-red-600 rounded-full w-3.5 h-3.5 flex items-center justify-center text-white text-[8px] font-bold shadow" title="Remove attached image">&times;</button>
+            </div>
+            <div class="relative flex items-center w-full">
+              <input id="ai-chat-input-mobile" type="text" placeholder="Ask AI assistant..." class="bg-bg border border-border text-text text-[11px] rounded-lg px-2.5 py-1.5 pr-14 focus:outline-none focus:border-accent w-full leading-normal" />
+              <button id="btn-ai-attach-image-mobile" class="absolute right-7 p-1 text-textSec hover:text-text rounded transition-colors cursor-pointer" title="Attach image to AI prompt" onclick="document.getElementById('ai-image-uploader-mobile').click()">
+                <i class="codicon codicon-device-camera text-xs"></i>
+              </button>
+              <input id="ai-image-uploader-mobile" type="file" accept="image/*" class="hidden" onchange="handleAiImageAttachmentMobile(event)" />
+              <button id="btn-ai-send-mobile" class="absolute right-1.5 p-1 bg-accent hover:bg-accent/90 text-white rounded transition-colors cursor-pointer" title="Send message">
+                <i class="codicon codicon-send text-xs text-white"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Mobile navigation Tab Bar -->
+      <div class="h-14 bg-panel flex border-t border-border/50 items-center justify-around">
+        <button id="btn-tab-layers" class="tab-btn flex-1 py-4 flex flex-col items-center justify-center text-accent">
+          <i class="codicon codicon-layers text-sm mb-1"></i>
+          <span class="text-[9px] font-mono uppercase tracking-wider font-semibold">Layers</span>
+        </button>
+
+        <button id="btn-tab-properties" class="tab-btn flex-1 py-4 flex flex-col items-center justify-center text-textSec">
+          <i class="codicon codicon-gear text-sm mb-1"></i>
+          <span class="text-[9px] font-mono uppercase tracking-wider font-semibold">Properties</span>
+        </button>
+
+        <button id="btn-tab-export" class="tab-btn flex-1 py-4 flex flex-col items-center justify-center text-textSec">
+          <i class="codicon codicon-code text-sm mb-1"></i>
+          <span class="text-[9px] font-mono uppercase tracking-wider font-semibold">Export Code</span>
+        </button>
+
+        <button id="btn-tab-ai" class="tab-btn flex-1 py-4 flex flex-col items-center justify-center text-textSec">
+          <i class="codicon codicon-sparkle text-sm mb-1"></i>
+          <span class="text-[9px] font-mono uppercase tracking-wider font-semibold">AI Copilot</span>
+        </button>
+      </div>
+
+    </div>
+
+    <!-- EXPORT MODAL (FOR DESKTOP / TABLET OVERLAY) -->
+    <div id="export-modal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+      <div class="bg-panel border border-border w-full max-w-2xl rounded-lg shadow-2xl flex flex-col max-h-[80vh]">
+        <div class="p-4 border-b border-border flex items-center justify-between">
+          <h3 class="text-xs font-mono font-bold text-accent uppercase tracking-wider">Export Spec (HTML/CSS)</h3>
+          <button id="btn-close-modal" class="p-1 text-textSec hover:text-text rounded transition-colors">
+            <i class="codicon codicon-close text-base"></i>
+          </button>
+        </div>
+        <div class="p-4 flex-1 flex flex-col min-h-0 space-y-3">
+          <p class="text-xs text-textSec">Copy the self-contained HTML element code block to apply onto other projects or spec guidelines:</p>
+          <textarea id="export-code-desktop" readonly class="flex-1 w-full p-3 bg-[#0a0a0a] border border-border text-[#a3a3a3] font-mono text-xs rounded resize-none focus:outline-none focus:border-accent" rows="10"></textarea>
+          
+          <div class="grid grid-cols-2 gap-3 pt-1">
+            <button id="btn-copy-desktop" class="py-2.5 bg-accent hover:bg-accent/90 text-xs font-semibold rounded text-white transition-all flex items-center justify-center space-x-1.5">
+              <i class="codicon codicon-copy text-sm"></i>
+              <span>Copy Code</span>
+            </button>
+            <button id="btn-select-all-desktop" class="py-2.5 bg-border hover:bg-[#303030] text-xs font-semibold rounded text-text transition-all flex items-center justify-center space-x-1.5">
+              <span>Select All</span>
+            </button>
+          </div>
+
+          <div class="border-t border-border/40 my-1"></div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <button id="btn-download-html-desktop" class="py-2.5 bg-emerald-600 hover:bg-emerald-700 text-xs font-semibold rounded text-white transition-all flex items-center justify-center space-x-1.5">
+              <i class="codicon codicon-cloud-download text-sm"></i>
+              <span>Download .HTML File</span>
+            </button>
+            <button id="btn-download-zip-desktop" class="py-2.5 bg-amber-600 hover:bg-amber-700 text-xs font-semibold rounded text-white transition-all flex items-center justify-center space-x-1.5" title="Export as ZIP with separate component files">
+              <i class="codicon codicon-file-zip text-sm"></i>
+              <span>Download separate .ZIP</span>
+            </button>
+          </div>
+
+          <div class="border-t border-border/40 my-1"></div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <button id="btn-export-project" class="py-2.5 bg-indigo-600 hover:bg-indigo-700 text-xs font-semibold rounded text-white transition-all flex items-center justify-center space-x-1.5" title="Export entire layout and chat sessions as JSON backup file">
+              <i class="codicon codicon-archive text-sm"></i>
+              <span>Backup Project (.json)</span>
+            </button>
+            <div class="relative">
+              <button onclick="document.getElementById('input-import-project').click()" class="w-full py-2.5 bg-zinc-700 hover:bg-zinc-600 text-xs font-semibold rounded text-text transition-all flex items-center justify-center space-x-1.5 cursor-pointer">
+                <i class="codicon codicon-cloud-upload text-sm"></i>
+                <span>Import Project (.json)</span>
+              </button>
+              <input type="file" id="input-import-project" class="hidden" accept=".json" onchange="importProjectFile(event)" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MAIN APP SCRIPT -->
+    <script>
+      // Initial state
+      let shapes = [];
+      let selectedShapeId = null;
+      let selectedShapeIds = new Set();
+      let clipboardShapes = [];
+      let attachedImageBase64 = null;
+      let pendingImageX = 0;
+      let pendingImageY = 0;
+      let activeTool = 'select'; // 'select' | 'rectangle' | 'circle' | 'text' | 'image'
+      let panX = 0;
+      let panY = 0;
+      let scale = 1.0;
+      let shapeCounter = { rectangle: 0, circle: 0, text: 0, image: 0 };
+
+      // Touch & mouse (Pointer Event) parameters
+      const activePointers = new Map();
+      let dragMode = null; // 'pan' | 'drag' | 'resize' | 'zoom'
+      let dragShapeId = null;
+      let startPanX = 0, startPanY = 0;
+      let startShapeX = 0, startShapeY = 0;
+      let startShapeW = 0, startShapeH = 0;
+      let startScale = 1;
+      let initialDistance = 0;
+      let initialMidpoint = { x: 0, y: 0 };
+      let midWorldX = 0, midWorldY = 0;
+      let hasMoved = false;
+      let startPointerX = 0, startPointerY = 0;
+
+      // Text edit locking to disable drag & pan during editing
+      let isEditingText = false;
+
+      // Google Font library declarations
+      const defaultFonts = [
+        { name: 'Poppins', url: 'https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;700&display=swap' },
+        { name: 'Lobster', url: 'https://fonts.googleapis.com/css2?family=Lobster&display=swap' },
+        { name: 'Playfair Display', url: 'https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap' },
+        { name: 'Space Grotesk', url: 'https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&display=swap' }
+      ];
+      let customFonts = JSON.parse(localStorage.getItem('graps_custom_fonts') || 'null') || defaultFonts;
+
+      function loadAllCustomFonts() {
+        // Clear any previously injected custom font links to avoid duplicates
+        document.querySelectorAll('.custom-font-link').forEach(el => el.remove());
+        
+        customFonts.forEach(font => {
+          if (font.url) {
+            const link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.className = 'custom-font-link';
+            link.href = font.url;
+            document.head.appendChild(link);
+          }
+        });
+      }
+
+      // DOM Elements cache
+      const canvasViewport = document.getElementById('canvas-viewport');
+      const canvasWorld = document.getElementById('canvas-world');
+      const zoomDisplay = document.getElementById('zoom-display');
+      const btnResetView = document.getElementById('btn-reset-view');
+      const btnExportTop = document.getElementById('btn-export-top');
+      const exportModal = document.getElementById('export-modal');
+      const btnCloseModal = document.getElementById('btn-close-modal');
+
+      function loadDefaultShapes() {
+        shapes = [
+          {
+            id: 'sh-1',
+            type: 'rectangle',
+            name: 'Rectangle 1',
+            x: -160,
+            y: -140,
+            w: 140,
+            h: 100,
+            fill: '#2563eb',
+            strokeWidth: 2,
+            strokeColor: '#3b82f6',
+            borderRadius: 8,
+            blur: 0,
+            opacity: 100,
+            locked: false
+          },
+          {
+            id: 'sh-2',
+            type: 'circle',
+            name: 'Circle 1',
+            x: 40,
+            y: -140,
+            w: 120,
+            h: 120,
+            fill: '#10b981',
+            strokeWidth: 0,
+            strokeColor: '#059669',
+            borderRadius: 0, // unused for circle
+            blur: 0,
+            opacity: 90,
+            locked: false
+          },
+          {
+            id: 'sh-3',
+            type: 'text',
+            name: 'Text 1',
+            x: -160,
+            y: 20,
+            w: 320,
+            h: 80,
+            fill: 'transparent',
+            strokeWidth: 0,
+            strokeColor: '#334155',
+            borderRadius: 6,
+            blur: 0,
+            opacity: 100,
+            locked: false,
+            fontSize: 16,
+            textColor: '#f8fafc',
+            fontFamily: 'Inter, sans-serif',
+            text: 'Tap a tool then tap canvas to add shapes.\nDouble-tap text to edit its content!'
+          }
+        ];
+        shapeCounter = { rectangle: 1, circle: 1, text: 1 };
+      }
+
+      function resetViewToCenter() {
+        const rect = canvasViewport.getBoundingClientRect();
+        // Place world 0,0 directly in the center of the viewport
+        panX = rect.width / 2;
+        panY = rect.height / 2;
+        scale = 1.0;
+        render();
+      }
+
+      // Dual-persistence state saver (Local Browser + Server File Database)
+      let saveTimeout = null;
+      async function saveProjectState() {
+        // 1. Instantly save to local browser storage
+        localStorage.setItem('graps_designer_shapes_v1', JSON.stringify(shapes));
+        localStorage.setItem('graps_designer_counter_v1', JSON.stringify(shapeCounter));
+        localStorage.setItem('graps_ai_settings_v1', JSON.stringify(aiSettings));
+        localStorage.setItem('graps_ai_messages_v1', JSON.stringify(aiMessages));
+
+        // Update indicator text in header
+        const indicator = document.getElementById('save-indicator');
+        if (indicator) {
+          indicator.innerHTML = `
+            <span class="inline-flex items-center text-[10px] font-mono text-emerald-400">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse mr-1.5"></span>
+              Menyimpan...
+            </span>
+          `;
+        }
+
+        // Debounce server autosave to prevent spamming HTTP requests on rapid actions (e.g. dragging)
+        if (saveTimeout) clearTimeout(saveTimeout);
+        saveTimeout = setTimeout(async () => {
+          try {
+            const response = await fetch('/api/save-project', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                shapes,
+                shapeCounter,
+                aiMessages,
+                aiSettings
+              })
+            });
+            if (response.ok) {
+              if (indicator) {
+                indicator.innerHTML = `
+                  <span class="inline-flex items-center text-[10px] font-mono text-emerald-400/80">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5"></span>
+                    Autosaved to Cloud & Local
+                  </span>
+                `;
+                setTimeout(() => {
+                  if (indicator && indicator.innerText.includes('Autosaved')) {
+                    indicator.innerHTML = '';
+                  }
+                }, 3000);
+              }
+            } else {
+              throw new Error('Server returned non-OK status');
+            }
+          } catch (e) {
+            console.warn("Failed server-side save, fallback to local only:", e);
+            if (indicator) {
+              indicator.innerHTML = `
+                <span class="inline-flex items-center text-[10px] font-mono text-amber-500/80" title="Failed to sync to cloud server, changes saved in browser">
+                  <span class="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5"></span>
+                  Local Only (Offline)
+                </span>
+              `;
+            }
+          }
+        }, 1000);
+      }
+
+      function saveToLocalStorage() {
+        saveProjectState();
+      }
+
+      // Manual project backup download
+      function downloadBackupProjectFile() {
+        const data = {
+          shapes,
+          shapeCounter,
+          aiMessages,
+          aiSettings,
+          version: 'graps_v1',
+          exportedAt: new Date().toISOString()
+        };
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `graps_project_backup_${new Date().toISOString().slice(0,10)}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+
+      // Manual project backup import
+      window.importProjectFile = function(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = async function(e) {
+          try {
+            const data = JSON.parse(e.target.result);
+            if (data.shapes && Array.isArray(data.shapes)) {
+              shapes = data.shapes;
+              shapeCounter = data.shapeCounter || { rectangle: shapes.filter(x => x.type === 'rectangle').length, circle: shapes.filter(x => x.type === 'circle').length, text: shapes.filter(x => x.type === 'text').length };
+              aiMessages = data.aiMessages || aiMessages;
+              aiSettings = data.aiSettings || aiSettings;
+              
+              saveProjectState();
+              render();
+              renderAiMessages();
+              renderLayersList();
+              if (typeof updatePropertiesPanel === 'function') updatePropertiesPanel();
+              
+              alert('Project backup successfully imported! Synchronizing with cloud...');
+              closeExportModal();
+            } else {
+              alert('Invalid .json file format for NOWACTION project.');
+            }
+          } catch (err) {
+            alert('Failed to read JSON file: ' + err.message);
+          }
+        };
+        reader.readAsText(file);
+      };
+
+      // Event listener registration
+      function setupEventListeners() {
+        // Pointer Events for pan & zoom & drag & resize
+        canvasViewport.addEventListener('pointerdown', handlePointerDown);
+        canvasViewport.addEventListener('pointermove', handlePointerMove);
+        canvasViewport.addEventListener('pointerup', handlePointerUp);
+        canvasViewport.addEventListener('pointercancel', handlePointerUp);
+
+        // Prevent default touch actions (pinch zoom scrolling)
+        canvasViewport.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
+        canvasViewport.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
+
+        // Toolbar buttons
+        const tools = ['select', 'rectangle', 'circle', 'text', 'image'];
+        tools.forEach(tool => {
+          document.getElementById(`tool-${tool}`).addEventListener('click', () => {
+            selectTool(tool);
+          });
+        });
+
+        // Key bindings for keyboard (good fallback for hybrid devices)
+        window.addEventListener('keydown', (e) => {
+          if (isEditingText) return; // ignore when typing
+          if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+          if (e.key === 's' || e.key === 'S') selectTool('select');
+          if (e.key === 'r' || e.key === 'R') selectTool('rectangle');
+          if (e.key === 'c' || e.key === 'C') selectTool('circle');
+          if (e.key === 't' || e.key === 'T') selectTool('text');
+          if (e.key === 'Delete' || e.key === 'Backspace') {
+            if (selectedShapeId) deleteShape(selectedShapeId);
+          }
+        });
+
+        // Top actions
+        btnResetView.addEventListener('click', resetViewToCenter);
+        btnExportTop.addEventListener('click', openExportModal);
+        btnCloseModal.addEventListener('click', closeExportModal);
+
+        // Select All button actions
+        document.getElementById('btn-select-all-desktop').addEventListener('click', () => {
+          const textarea = document.getElementById('export-code-desktop');
+          textarea.select();
+        });
+        document.getElementById('btn-select-all-mobile').addEventListener('click', () => {
+          const textarea = document.getElementById('export-code-mobile');
+          textarea.select();
+        });
+
+        // Copy button actions
+        document.getElementById('btn-copy-desktop').addEventListener('click', (e) => {
+          const text = document.getElementById('export-code-desktop').value;
+          copyTextToClipboard(text, e.currentTarget);
+        });
+        document.getElementById('btn-copy-mobile').addEventListener('click', (e) => {
+          const text = document.getElementById('export-code-mobile').value;
+          copyTextToClipboard(text, e.currentTarget);
+        });
+
+        // Download actions (desktop)
+        document.getElementById('btn-download-html-desktop').addEventListener('click', downloadCombinedHTML);
+        document.getElementById('btn-download-zip-desktop').addEventListener('click', downloadSeparateZIP);
+        document.getElementById('btn-export-project').addEventListener('click', downloadBackupProjectFile);
+
+        // Download actions (mobile)
+        document.getElementById('btn-download-html-mobile').addEventListener('click', downloadCombinedHTML);
+        document.getElementById('btn-download-zip-mobile').addEventListener('click', downloadSeparateZIP);
+      }
+
+      // MOBILE TAB NAVIGATION SYSTEM
+      function setupMobileTabs() {
+        const tabs = ['layers', 'properties', 'export', 'ai'];
+        tabs.forEach(tab => {
+          document.getElementById(`btn-tab-${tab}`).addEventListener('click', () => {
+            switchMobileTab(tab);
+          });
+        });
+      }
+
+      function switchMobileTab(targetTab) {
+        const tabs = ['layers', 'properties', 'export', 'ai'];
+        tabs.forEach(tab => {
+          const btn = document.getElementById(`btn-tab-${tab}`);
+          const panel = document.getElementById(`mobile-tab-${tab}`);
+          
+          if (tab === targetTab) {
+            btn.classList.add('text-accent');
+            btn.classList.remove('text-textSec');
+            panel.classList.remove('hidden');
+          } else {
+            btn.classList.remove('text-accent');
+            btn.classList.add('text-textSec');
+            panel.classList.add('hidden');
+          }
+        });
+        
+        // Populate export code inside mobile sheet on tap
+        if (targetTab === 'export') {
+          const textarea = document.getElementById('export-code-mobile');
+          textarea.value = generateExportCode();
+        }
+      }
+
+      // Tool selection
+      function selectTool(tool) {
+        activeTool = tool;
+        
+        // Highlight active button in toolbar
+        const tools = ['select', 'rectangle', 'circle', 'text', 'image'];
+        tools.forEach(t => {
+          const btn = document.getElementById(`tool-${t}`);
+          if (t === tool) {
+            btn.classList.add('text-accent', 'bg-accent/10');
+            btn.classList.remove('text-textSec');
+          } else {
+            btn.classList.remove('text-accent', 'bg-accent/10');
+            btn.classList.add('text-textSec');
+          }
+        });
+
+        if (tool !== 'select') {
+          // Deselect when changing to drawing tool
+          selectShape(null);
+        }
+      }
+
+      function getGoogleFontsExportLinks() {
+        // Collect custom fonts that are actually used by text shapes
+        const usedFontNames = new Set();
+        shapes.forEach(shape => {
+          if (shape.type === 'text' && shape.fontFamily) {
+            const cleanName = shape.fontFamily.split(',')[0].replace(/['"]/g, '').trim();
+            usedFontNames.add(cleanName);
+          }
+        });
+
+        let linksHtml = '';
+        customFonts.forEach(font => {
+          if (usedFontNames.has(font.name)) {
+            linksHtml += `<link rel="stylesheet" href="${font.url}">\n`;
+          }
+        });
+        return linksHtml;
+      }
+
+      // Generate HTML/CSS inline spec
+      function generateExportCode() {
+        if (shapes.length === 0) return '<!-- No elements in canvas -->';
+        
+        let html = '<!-- Spec template exported from NOWACTION -->\n';
+        html += getGoogleFontsExportLinks();
+        html += '<div style="position:relative; width:100%; height:100vh; overflow:hidden; background:#0a0a0a;">\n';
+        
+        shapes.forEach(shape => {
+          const opacityVal = (shape.opacity / 100).toFixed(2);
+          const borderStyle = shape.strokeWidth > 0 ? `${shape.strokeWidth}px solid ${shape.strokeColor}` : 'none';
+          const blurStyle = shape.blur > 0 ? `blur(${shape.blur}px)` : 'none';
+          const borderRadiusStyle = shape.type === 'circle' ? '50%' : `${shape.borderRadius}px`;
+          
+          if (shape.type === 'text') {
+            const fontStyle = shape.fontFamily ? `font-family:${shape.fontFamily};` : 'font-family:sans-serif;';
+            html += `  <div style="position:absolute; left:${shape.x}px; top:${shape.y}px; width:${shape.w}px; height:${shape.h}px; background:${shape.fill}; border:${borderStyle}; border-radius:${borderRadiusStyle}; filter:${blurStyle}; opacity:${opacityVal}; color:${shape.textColor}; font-size:${shape.fontSize}px; ${fontStyle} display:flex; align-items:center; justify-content:center; text-align:center; box-sizing:border-box; overflow:hidden; white-space:pre-wrap; word-break:break-word; padding:8px;">${shape.text}</div>\n`;
+          } else {
+            html += `  <div style="position:absolute; left:${shape.x}px; top:${shape.y}px; width:${shape.w}px; height:${shape.h}px; background:${shape.fill}; border:${borderStyle}; border-radius:${borderRadiusStyle}; filter:${blurStyle}; opacity:${opacityVal}; box-sizing:border-box;"></div>\n`;
+          }
+        });
+        
+        html += '</div>';
+        return html;
+      }
+
+      function openExportModal() {
+        const textarea = document.getElementById('export-code-desktop');
+        textarea.value = generateExportCode();
+        exportModal.classList.remove('hidden');
+      }
+
+      function closeExportModal() {
+        exportModal.classList.add('hidden');
+      }
+
+      function downloadCombinedHTML() {
+        const code = generateExportCode();
+        const blob = new Blob([code], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'graps_export_combined.html';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+
+      function downloadSeparateZIP() {
+        if (typeof JSZip === 'undefined') {
+          alert('JSZip library is still loading or failed to load. Please try again in a moment.');
+          return;
+        }
+        
+        if (shapes.length === 0) {
+          alert('No elements in canvas to export!');
+          return;
+        }
+        
+        const zip = new JSZip();
+        
+        // Include combined index.html at root
+        const combinedCode = generateExportCode();
+        zip.file('index.html', combinedCode);
+        
+        shapes.forEach((shape, index) => {
+          const opacityVal = (shape.opacity / 100).toFixed(2);
+          const borderStyle = shape.strokeWidth > 0 ? `${shape.strokeWidth}px solid ${shape.strokeColor}` : 'none';
+          const blurStyle = shape.blur > 0 ? `blur(${shape.blur}px)` : 'none';
+          const borderRadiusStyle = shape.type === 'circle' ? '50%' : `${shape.borderRadius}px`;
+          
+          let compHtml = '';
+          
+          // Add Google Font import links if this text shape uses any
+          if (shape.type === 'text' && shape.fontFamily) {
+            const cleanName = shape.fontFamily.split(',')[0].replace(/['"]/g, '').trim();
+            const foundFont = customFonts.find(f => f.name.toLowerCase() === cleanName.toLowerCase());
+            if (foundFont) {
+              compHtml += `<!-- Google Font: ${foundFont.name} -->\n<link rel="stylesheet" href="${foundFont.url}">\n\n`;
+            }
+          }
+          
+          compHtml += `<!-- Component: ${shape.name} -->\n`;
+          if (shape.type === 'text') {
+            const fontStyle = shape.fontFamily ? `font-family:${shape.fontFamily};` : 'font-family:sans-serif;';
+            compHtml += `<div style="position:relative; width:${shape.w}px; height:${shape.h}px; background:${shape.fill}; border:${borderStyle}; border-radius:${borderRadiusStyle}; filter:${blurStyle}; opacity:${opacityVal}; color:${shape.textColor}; font-size:${shape.fontSize}px; ${fontStyle} display:flex; align-items:center; justify-content:center; text-align:center; box-sizing:border-box; overflow:hidden; white-space:pre-wrap; word-break:break-word; padding:8px;">${shape.text}</div>\n`;
+          } else {
+            compHtml += `<div style="position:relative; width:${shape.w}px; height:${shape.h}px; background:${shape.fill}; border:${borderStyle}; border-radius:${borderRadiusStyle}; filter:${blurStyle}; opacity:${opacityVal}; box-sizing:border-box;"></div>\n`;
+          }
+          
+          // Clean safe filename
+          const cleanName = shape.name.toLowerCase().replace(/[^a-z0-9]/g, '_');
+          const filename = `${String(index + 1).padStart(2, '0')}_${cleanName}.html`;
+          zip.file(`components/${filename}`, compHtml);
+        });
+        
+        zip.generateAsync({ type: 'blob' }).then(function (content) {
+          const url = URL.createObjectURL(content);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'graps_components_export.zip';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }).catch(err => {
+          console.error(err);
+          alert('Failed to generate ZIP file.');
+        });
+      }
+
+      // Main drawing / adding shape function
+      function addShapeAt(worldX, worldY) {
+        const type = activeTool;
+        shapeCounter[type]++;
+        const num = shapeCounter[type];
+        
+        let newShape = {
+          id: 'sh_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+          type: type,
+          name: type.charAt(0).toUpperCase() + type.slice(1) + ' ' + num,
+          fill: type === 'text' ? 'transparent' : '#3b82f6',
+          strokeWidth: 0,
+          strokeColor: '#262626',
+          borderRadius: type === 'text' ? 4 : 0,
+          blur: 0,
+          opacity: 100,
+          locked: false
+        };
+
+        if (type === 'rectangle') {
+          newShape.w = 120;
+          newShape.h = 80;
+          newShape.x = Math.round(worldX - 60);
+          newShape.y = Math.round(worldY - 40);
+        } else if (type === 'circle') {
+          newShape.w = 120;
+          newShape.h = 120;
+          newShape.x = Math.round(worldX - 60);
+          newShape.y = Math.round(worldY - 60);
+        } else if (type === 'text') {
+          newShape.w = 160;
+          newShape.h = 50;
+          newShape.x = Math.round(worldX - 80);
+          newShape.y = Math.round(worldY - 25);
+          newShape.fontSize = 14;
+          newShape.textColor = '#e5e5e5';
+          newShape.fontFamily = 'Inter, sans-serif';
+          newShape.text = 'Text';
+        }
+
+        shapes.push(newShape);
+        selectShape(newShape.id);
+        
+        // Revert back to Select tool automatically per instruction
+        selectTool('select');
+        saveToLocalStorage();
+        render();
+        
+        // Focus Properties panel on mobile automatically so inputs are visible
+        switchMobileTab('properties');
+      }
+
+      // Selection tracking
+      function selectShape(id, extendSelection = false) {
+        if (!id) {
+          selectedShapeId = null;
+          selectedShapeIds.clear();
+          render();
+          updatePropertiesPanel();
+          return;
+        }
+
+        const targetShape = shapes.find(s => s.id === id);
+        if (!targetShape) return;
+
+        // If part of a group, select the whole group together
+        const groupMembers = targetShape.groupId 
+          ? shapes.filter(s => s.groupId === targetShape.groupId).map(s => s.id)
+          : [id];
+
+        if (extendSelection) {
+          const allSelected = groupMembers.every(sid => selectedShapeIds.has(sid));
+          if (allSelected) {
+            groupMembers.forEach(sid => selectedShapeIds.delete(sid));
+          } else {
+            groupMembers.forEach(sid => selectedShapeIds.add(sid));
+          }
+        } else {
+          selectedShapeIds.clear();
+          groupMembers.forEach(sid => selectedShapeIds.add(sid));
+        }
+
+        if (selectedShapeIds.size > 0) {
+          if (!selectedShapeIds.has(selectedShapeId)) {
+            selectedShapeId = Array.from(selectedShapeIds)[0];
+          }
+        } else {
+          selectedShapeId = null;
+        }
+
+        render();
+        updatePropertiesPanel();
+      }
+
+      // Delete Shape
+      function deleteShape(id) {
+        shapes = shapes.filter(s => s.id !== id);
+        selectedShapeIds.delete(id);
+        if (selectedShapeId === id) {
+          selectedShapeId = selectedShapeIds.size > 0 ? Array.from(selectedShapeIds)[0] : null;
+        }
+        saveToLocalStorage();
+        render();
+        updatePropertiesPanel();
+      }
+
+      // Delete Selected Shapes (Bulk delete)
+      window.deleteSelected = function() {
+        if (selectedShapeIds.size === 0) return;
+        shapes = shapes.filter(s => !selectedShapeIds.has(s.id));
+        selectedShapeIds.clear();
+        selectedShapeId = null;
+        saveToLocalStorage();
+        render();
+        updatePropertiesPanel();
+      };
+
+      // Copy Selected shapes to clipboard
+      window.copySelected = function() {
+        if (selectedShapeIds.size === 0) return;
+        clipboardShapes = [];
+        selectedShapeIds.forEach(id => {
+          const s = shapes.find(sh => sh.id === id);
+          if (s) {
+            // deep clone
+            clipboardShapes.push(JSON.parse(JSON.stringify(s)));
+          }
+        });
+        console.log(`Copied ${clipboardShapes.length} shapes to clipboard`);
+      };
+
+      // Paste shapes from clipboard
+      window.pasteSelected = function() {
+        if (clipboardShapes.length === 0) return;
+        
+        // Generate new unique IDs and offset paste position slightly
+        const offset = 20;
+        const newIds = [];
+        
+        // If paste contains groups, we should map them to new group IDs
+        const groupMapping = {};
+
+        clipboardShapes.forEach((s) => {
+          const originalId = s.id;
+          const newId = 'sh_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
+          const cloned = JSON.parse(JSON.stringify(s));
+          cloned.id = newId;
+          cloned.x += offset;
+          cloned.y += offset;
+          
+          if (cloned.groupId) {
+            if (!groupMapping[cloned.groupId]) {
+              groupMapping[cloned.groupId] = 'group_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
+            }
+            cloned.groupId = groupMapping[cloned.groupId];
+          }
+
+          shapes.push(cloned);
+          newIds.push(newId);
+        });
+
+        // Select the newly pasted elements
+        selectedShapeIds.clear();
+        newIds.forEach(id => selectedShapeIds.add(id));
+        selectedShapeId = newIds[0];
+
+        // Save, render, update
+        saveToLocalStorage();
+        render();
+        updatePropertiesPanel();
+      };
+
+      // Duplicate Selected shapes immediately
+      window.duplicateSelected = function() {
+        if (selectedShapeIds.size === 0) return;
+        
+        const offset = 25;
+        const newIds = [];
+        const groupMapping = {};
+
+        selectedShapeIds.forEach(id => {
+          const s = shapes.find(sh => sh.id === id);
+          if (s) {
+            const cloned = JSON.parse(JSON.stringify(s));
+            const newId = 'sh_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
+            cloned.id = newId;
+            cloned.x += offset;
+            cloned.y += offset;
+
+            if (cloned.groupId) {
+              if (!groupMapping[cloned.groupId]) {
+                groupMapping[cloned.groupId] = 'group_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
+              }
+              cloned.groupId = groupMapping[cloned.groupId];
+            }
+
+            shapes.push(cloned);
+            newIds.push(newId);
+          }
+        });
+
+        // Select newly duplicated elements
+        selectedShapeIds.clear();
+        newIds.forEach(id => selectedShapeIds.add(id));
+        selectedShapeId = newIds[0];
+
+        saveToLocalStorage();
+        render();
+        updatePropertiesPanel();
+      };
+
+      // Group selected shapes together
+      window.groupSelectedShapes = function() {
+        if (selectedShapeIds.size < 2) {
+          alert("Silakan pilih minimal 2 elemen untuk digabungkan!");
+          return;
+        }
+
+        const newGroupId = 'group_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
+        
+        selectedShapeIds.forEach(id => {
+          const s = shapes.find(sh => sh.id === id);
+          if (s) {
+            s.groupId = newGroupId;
+          }
+        });
+
+        saveToLocalStorage();
+        render();
+        updatePropertiesPanel();
+        alert("Elemen berhasil digabungkan dalam grup!");
+      };
+
+      // Ungroup selected shapes
+      window.ungroupSelectedShapes = function() {
+        let ungroupCount = 0;
+        selectedShapeIds.forEach(id => {
+          const s = shapes.find(sh => sh.id === id);
+          if (s && s.groupId) {
+            // Find all shapes with the same groupId and clear them
+            const gId = s.groupId;
+            shapes.forEach(sh => {
+              if (sh.groupId === gId) {
+                delete sh.groupId;
+                ungroupCount++;
+              }
+            });
+          }
+        });
+
+        if (ungroupCount > 0) {
+          saveToLocalStorage();
+          render();
+          updatePropertiesPanel();
+          alert("Grup berhasil dipisahkan!");
+        } else {
+          alert("Elemen yang dipilih tidak berada dalam grup.");
+        }
+      };
+
+      // Canvas image uploader callback
+      window.handleCanvasImageUpload = function(event) {
+        const file = event.target.files[0];
+        if (!file) {
+          selectTool('select');
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const imageDataUrl = e.target.result;
+          
+          shapeCounter['image'] = (shapeCounter['image'] || 0) + 1;
+          const num = shapeCounter['image'];
+          
+          let newShape = {
+            id: 'sh_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+            type: 'image',
+            name: 'Image ' + num,
+            src: imageDataUrl,
+            w: 150,
+            h: 150,
+            x: Math.round(pendingImageX - 75),
+            y: Math.round(pendingImageY - 75),
+            fill: 'transparent',
+            strokeWidth: 0,
+            strokeColor: '#262626',
+            borderRadius: 4,
+            blur: 0,
+            opacity: 100,
+            locked: false
+          };
+
+          shapes.push(newShape);
+          
+          // Select the new image
+          selectedShapeIds.clear();
+          selectedShapeIds.add(newShape.id);
+          selectedShapeId = newShape.id;
+          
+          selectTool('select');
+          saveToLocalStorage();
+          render();
+          switchMobileTab('properties');
+        };
+        reader.readAsDataURL(file);
+      };
+
+      // AI Image Attachment Logic (Desktop)
+      window.handleAiImageAttachment = function(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          attachedImageBase64 = e.target.result;
+          const previewDiv = document.getElementById('ai-chat-image-preview');
+          const previewImg = document.getElementById('ai-chat-image-preview-img');
+          if (previewDiv && previewImg) {
+            previewImg.src = e.target.result;
+            previewDiv.classList.remove('hidden');
+          }
+        };
+        reader.readAsDataURL(file);
+      };
+
+      window.clearAttachedImage = function() {
+        attachedImageBase64 = null;
+        const previewDiv = document.getElementById('ai-chat-image-preview');
+        if (previewDiv) {
+          previewDiv.classList.add('hidden');
+        }
+        const fileInput = document.getElementById('ai-image-uploader');
+        if (fileInput) fileInput.value = '';
+      };
+
+      // AI Image Attachment Logic (Mobile)
+      window.handleAiImageAttachmentMobile = function(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          attachedImageBase64 = e.target.result;
+          const previewDiv = document.getElementById('ai-chat-image-preview-mobile');
+          const previewImg = document.getElementById('ai-chat-image-preview-img-mobile');
+          if (previewDiv && previewImg) {
+            previewImg.src = e.target.result;
+            previewDiv.classList.remove('hidden');
+          }
+        };
+        reader.readAsDataURL(file);
+      };
+
+      window.clearAttachedImageMobile = function() {
+        attachedImageBase64 = null;
+        const previewDiv = document.getElementById('ai-chat-image-preview-mobile');
+        if (previewDiv) {
+          previewDiv.classList.add('hidden');
+        }
+        const fileInput = document.getElementById('ai-image-uploader-mobile');
+        if (fileInput) fileInput.value = '';
+      };
+
+      // Toggle Lock Status
+      function toggleLock(id) {
+        const shape = shapes.find(s => s.id === id);
+        if (shape) {
+          shape.locked = !shape.locked;
+          saveToLocalStorage();
+          render();
+          updatePropertiesPanel();
+        }
+      }
+
+      // Bring selected shape to top layer (last in array)
+      window.bringToFront = function(id) {
+        const index = shapes.findIndex(s => s.id === id);
+        if (index !== -1) {
+          const [shape] = shapes.splice(index, 1);
+          shapes.push(shape);
+          saveToLocalStorage();
+          render();
+          updatePropertiesPanel();
+        }
+      }
+
+      // Send selected shape to bottom layer (first in array)
+      window.sendToBack = function(id) {
+        const index = shapes.findIndex(s => s.id === id);
+        if (index !== -1) {
+          const [shape] = shapes.splice(index, 1);
+          shapes.unshift(shape);
+          saveToLocalStorage();
+          render();
+          updatePropertiesPanel();
+        }
+      }
+
+      window.applyFontFamily = function(fontNameWithFallback) {
+        if (!selectedShapeId) return;
+        const shape = shapes.find(s => s.id === selectedShapeId);
+        if (shape && shape.type === 'text') {
+          shape.fontFamily = fontNameWithFallback;
+          saveToLocalStorage();
+          render();
+          updatePropertiesPanel();
+        }
+      }
+
+      window.addNewCustomFont = function() {
+        const nameInput = document.getElementById('new-font-name');
+        const urlInput = document.getElementById('new-font-url');
+        if (!nameInput || !urlInput) return;
+
+        const name = nameInput.value.trim();
+        let url = urlInput.value.trim();
+
+        if (!name || !url) {
+          alert('Please enter both Font Name and Google Font CSS URL.');
+          return;
+        }
+
+        // Quick input sanitize/auto-correct:
+        // If a user just pastes the standard <link href="url" rel="stylesheet"> or some embed, extract the href
+        const hrefMatch = url.match(/href="([^"]+)"/);
+        if (hrefMatch && hrefMatch[1]) {
+          url = hrefMatch[1];
+        }
+
+        // Add to list if not already existing
+        const exists = customFonts.some(f => f.name.toLowerCase() === name.toLowerCase());
+        if (exists) {
+          alert('Font with this name already exists in your library!');
+          return;
+        }
+
+        customFonts.push({ name, url });
+        localStorage.setItem('graps_custom_fonts', JSON.stringify(customFonts));
+        
+        // Dynamically append stylesheet to head immediately
+        loadAllCustomFonts();
+
+        // Apply it directly to the active text shape if one is selected!
+        if (selectedShapeId) {
+          const shape = shapes.find(s => s.id === selectedShapeId);
+          if (shape && shape.type === 'text') {
+            shape.fontFamily = `'${name}', sans-serif`;
+            saveToLocalStorage();
+          }
+        }
+
+        render();
+        updatePropertiesPanel();
+      }
+
+      window.deleteCustomFont = function(name) {
+        customFonts = customFonts.filter(f => f.name !== name);
+        localStorage.setItem('graps_custom_fonts', JSON.stringify(customFonts));
+        loadAllCustomFonts();
+        
+        // Reset shapes that were using this font family back to sans-serif
+        shapes.forEach(shape => {
+          if (shape.type === 'text' && shape.fontFamily && shape.fontFamily.includes(name)) {
+            shape.fontFamily = 'sans-serif';
+          }
+        });
+        
+        saveToLocalStorage();
+        render();
+        updatePropertiesPanel();
+      }
+
+      // Robust clipboard copying function with reliable HTTPS & HTTP fallback
+      async function copyTextToClipboard(text, buttonEl) {
+        let success = false;
+        try {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(text);
+            success = true;
+          }
+        } catch (err) {
+          // Silent fallback
+        }
+
+        if (!success) {
+          try {
+            const isMobile = buttonEl.id.includes('mobile');
+            const textarea = document.getElementById(isMobile ? 'export-code-mobile' : 'export-code-desktop');
+            textarea.select();
+            const successful = document.execCommand('copy');
+            if (successful) success = true;
+          } catch (err) {
+            // Error handling
+          }
+        }
+
+        if (success) {
+          const originalText = buttonEl.innerHTML;
+          buttonEl.innerHTML = `
+            <svg class="w-3.5 h-3.5 text-green-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
+            </svg>
+            <span class="text-green-400 font-bold font-mono">Copied!</span>
+          `;
+          buttonEl.classList.add('border-green-500/30', 'bg-green-500/10');
+          setTimeout(() => {
+            buttonEl.innerHTML = originalText;
+            buttonEl.classList.remove('border-green-500/30', 'bg-green-500/10');
+          }, 1500);
+        } else {
+          const originalText = buttonEl.innerHTML;
+          buttonEl.innerHTML = `<span class="text-red-400">Error</span>`;
+          setTimeout(() => {
+            buttonEl.innerHTML = originalText;
+          }, 1500);
+        }
+      }
+
+      // Pointer event math utils
+      function getDistance(p1, p2) {
+        return Math.sqrt((p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2);
+      }
+
+      function getMidpoint(p1, p2) {
+        return {
+          x: (p1.x + p2.x) / 2,
+          y: (p1.y + p2.y) / 2
+        };
+      }
+
+      // Pointer Event handlers for viewport
+      function handlePointerDown(e) {
+        if (isEditingText) return; // completely lock interaction during typing
+        
+        const rect = canvasViewport.getBoundingClientRect();
+        const clientX = e.clientX;
+        const clientY = e.clientY;
+
+        activePointers.set(e.pointerId, { x: clientX, y: clientY, startX: clientX, startY: clientY });
+        canvasViewport.setPointerCapture(e.pointerId);
+
+        hasMoved = false;
+
+        // TWO FINGERS PINCH ZOOM DETECTED
+        if (activePointers.size === 2) {
+          dragMode = 'zoom';
+          const pointers = Array.from(activePointers.values());
+          const p1 = pointers[0];
+          const p2 = pointers[1];
+          initialDistance = getDistance(p1, p2);
+          initialMidpoint = getMidpoint(p1, p2);
+          startScale = scale;
+          startPanX = panX;
+          startPanY = panY;
+          midWorldX = (initialMidpoint.x - rect.left - panX) / scale;
+          midWorldY = (initialMidpoint.y - rect.top - panY) / scale;
+          return;
+        }
+
+        // SINGLE FINGER INTERACTION
+        if (activePointers.size === 1) {
+          startPointerX = clientX;
+          startPointerY = clientY;
+
+          // Bug 1 Fix: If active tool is not 'select', always create a shape immediately
+          // at the clicked coordinates and return, ignoring any existing shapes underneath.
+          if (activeTool === 'image') {
+            const clickX = clientX - rect.left;
+            const clickY = clientY - rect.top;
+            pendingImageX = (clickX - panX) / scale;
+            pendingImageY = (clickY - panY) / scale;
+            document.getElementById('canvas-image-file-input').click();
+            return;
+          }
+          if (activeTool !== 'select') {
+            const clickX = clientX - rect.left;
+            const clickY = clientY - rect.top;
+            const worldX = (clickX - panX) / scale;
+            const worldY = (clickY - panY) / scale;
+            addShapeAt(worldX, worldY);
+            return;
+          }
+
+          // Detect resize handle
+          const handleEl = e.target.closest('.resize-handle');
+          if (handleEl) {
+            e.stopPropagation();
+            const shapeId = handleEl.dataset.id;
+            const shape = shapes.find(s => s.id === shapeId);
+            if (shape && !shape.locked) {
+              dragMode = 'resize';
+              dragShapeId = shapeId;
+              startShapeW = shape.w;
+              startShapeH = shape.h;
+              startShapeX = shape.x;
+              startShapeY = shape.y;
+            }
+            return;
+          }
+
+          // Detect double-tap text for inline content editing
+          const shapeEl = e.target.closest('.shape');
+          if (shapeEl) {
+            const shapeId = shapeEl.dataset.id;
+            const shape = shapes.find(s => s.id === shapeId);
+            
+            // Check double tap timing
+            const now = Date.now();
+            if (shape && shape.type === 'text' && now - (shapeEl.dataset.lastTap || 0) < 300) {
+              e.stopPropagation();
+              enterInlineTextEdit(shapeEl, shape);
+              return;
+            }
+            shapeEl.dataset.lastTap = now;
+
+            if (shape) {
+              selectShape(shapeId);
+              if (!shape.locked && activeTool === 'select') {
+                dragMode = 'drag';
+                dragShapeId = shapeId;
+                startShapeX = shape.x;
+                startShapeY = shape.y;
+              }
+              return;
+            }
+          }
+
+          // Empty background tapped
+          if (activeTool !== 'select') {
+            const clickX = clientX - rect.left;
+            const clickY = clientY - rect.top;
+            const worldX = (clickX - panX) / scale;
+            const worldY = (clickY - panY) / scale;
+            addShapeAt(worldX, worldY);
+          } else {
+            // Default select tool background drag = pan canvas
+            dragMode = 'pan';
+            startPanX = panX;
+            startPanY = panY;
+          }
+        }
+      }
+
+      function handlePointerMove(e) {
+        if (!activePointers.has(e.pointerId)) return;
+        const rect = canvasViewport.getBoundingClientRect();
+        const clientX = e.clientX;
+        const clientY = e.clientY;
+
+        // Update active tracking
+        const pointer = activePointers.get(e.pointerId);
+        pointer.x = clientX;
+        pointer.y = clientY;
+
+        // Check if pointer actually moved from origin
+        const distMoved = Math.sqrt((clientX - pointer.startX) ** 2 + (clientY - pointer.startY) ** 2);
+        if (distMoved > 4) {
+          hasMoved = true;
+        }
+
+        // Two finger scaling
+        if (dragMode === 'zoom' && activePointers.size === 2) {
+          const pointers = Array.from(activePointers.values());
+          const p1 = pointers[0];
+          const p2 = pointers[1];
+          const currentDistance = getDistance(p1, p2);
+          const currentMidpoint = getMidpoint(p1, p2);
+
+          if (initialDistance > 0) {
+            let newScale = startScale * (currentDistance / initialDistance);
+            // Lock scale boundary limit
+            newScale = Math.min(8.0, Math.max(0.15, newScale));
+            scale = newScale;
+            
+            // Pan world pivot adjustments so zoom stays relative to multi-touch center
+            panX = currentMidpoint.x - rect.left - midWorldX * scale;
+            panY = currentMidpoint.y - rect.top - midWorldY * scale;
+            render();
+          }
+          return;
+        }
+
+        // Pan Canvas
+        if (dragMode === 'pan' && activePointers.size === 1) {
+          const dx = clientX - startPointerX;
+          const dy = clientY - startPointerY;
+          panX = startPanX + dx;
+          panY = startPanY + dy;
+          render();
+          return;
+        }
+
+        // Drag Shape
+        if (dragMode === 'drag' && dragShapeId && activePointers.size === 1) {
+          const shape = shapes.find(s => s.id === dragShapeId);
+          if (shape && !shape.locked) {
+            const dx = clientX - startPointerX;
+            const dy = clientY - startPointerY;
+            // Translate client movement vector to world scale
+            shape.x = Math.round(startShapeX + dx / scale);
+            shape.y = Math.round(startShapeY + dy / scale);
+            render();
+            updatePropertiesPanel();
+          }
+          return;
+        }
+
+        // Resize Shape
+        if (dragMode === 'resize' && dragShapeId && activePointers.size === 1) {
+          const shape = shapes.find(s => s.id === dragShapeId);
+          if (shape && !shape.locked) {
+            const dx = clientX - startPointerX;
+            const dy = clientY - startPointerY;
+            const worldDx = dx / scale;
+            const worldDy = dy / scale;
+
+            if (shape.type === 'circle') {
+              // Circles are linked 1:1 on visual canvas drag resize
+              const maxDelta = Math.max(worldDx, worldDy);
+              const newSize = Math.max(10, Math.round(startShapeW + maxDelta));
+              shape.w = newSize;
+              shape.h = newSize;
+            } else {
+              shape.w = Math.max(10, Math.round(startShapeW + worldDx));
+              shape.h = Math.max(10, Math.round(startShapeH + worldDy));
+            }
+            render();
+            updatePropertiesPanel();
+          }
+          return;
+        }
+      }
+
+      function handlePointerUp(e) {
+        activePointers.delete(e.pointerId);
+        try {
+          canvasViewport.releasePointerCapture(e.pointerId);
+        } catch(err) {}
+
+        if (activePointers.size === 0) {
+          // If tapped background empty space without panning, deselect current
+          if (!hasMoved && dragMode === 'pan' && activeTool === 'select') {
+            selectShape(null);
+          }
+          dragMode = null;
+          dragShapeId = null;
+          saveToLocalStorage();
+        } else if (activePointers.size === 1 && dragMode === 'zoom') {
+          // Seamless transition back to pan mode if one touch is released
+          dragMode = 'pan';
+          const remainingPointer = Array.from(activePointers.values())[0];
+          startPointerX = remainingPointer.x;
+          startPointerY = remainingPointer.y;
+          startPanX = panX;
+          startPanY = panY;
+        }
+      }
+
+      // Enter inline text editing via contenteditable directly on the canvas element
+      function enterInlineTextEdit(shapeEl, shape) {
+        isEditingText = true;
+        const textContainer = shapeEl.querySelector('.text-content');
+        if (!textContainer) return;
+
+        textContainer.contentEditable = 'true';
+        textContainer.focus();
+        
+        // Select all text inside on focus
+        document.execCommand('selectAll', false, null);
+
+        // Lock document events
+        textContainer.addEventListener('blur', onTextBlur);
+        textContainer.addEventListener('keydown', onTextKeyDown);
+
+        function onTextBlur() {
+          cleanup();
+        }
+
+        function onTextKeyDown(ev) {
+          // Finish editing on Enter without shift
+          if (ev.key === 'Enter' && !ev.shiftKey) {
+            ev.preventDefault();
+            textContainer.blur();
+          }
+          // Escape resets and finishes
+          if (ev.key === 'Escape') {
+            ev.preventDefault();
+            textContainer.innerText = shape.text;
+            textContainer.blur();
+          }
+        }
+
+        function cleanup() {
+          textContainer.contentEditable = 'false';
+          textContainer.removeEventListener('blur', onTextBlur);
+          textContainer.removeEventListener('keydown', onTextKeyDown);
+          
+          shape.text = textContainer.innerText;
+          isEditingText = false;
+          saveToLocalStorage();
+          render();
+          updatePropertiesPanel();
+        }
+      }
+
+      // Realtime input propagation
+      window.updateShapeVal = function(prop, value) {
+        if (!selectedShapeId) return;
+        const shape = shapes.find(s => s.id === selectedShapeId);
+        if (!shape) return;
+
+        // Parse types properly
+        if (['x', 'y', 'w', 'h', 'strokeWidth', 'borderRadius', 'blur', 'opacity', 'fontSize'].includes(prop)) {
+          value = parseInt(value);
+          if (isNaN(value)) value = 0;
+        }
+
+        if (prop === 'opacity') {
+          value = Math.min(100, Math.max(0, value));
+        }
+
+        shape[prop] = value;
+        
+        // Link Circle inputs if desired, but user allows independent oval typing:
+        // "untuk Circle, W dan H terhubung (lingkaran = rasio 1:1 secara default, tapi tetap bisa diketik beda kalau user mau oval)"
+        
+        render();
+        saveToLocalStorage();
+      }
+
+      // Update color swatch preview block when writing hex values
+      window.updateSwatch = function(swatchId, hexVal) {
+        const swatch = document.getElementById(swatchId);
+        if (swatch) {
+          // Simple validation
+          if (/^#[0-9A-F]{6}$/i.test(hexVal) || /^#[0-9A-F]{3}$/i.test(hexVal)) {
+            swatch.style.backgroundColor = hexVal;
+          }
+        }
+      }
+
+      // RENDER ALL SHAPES & CANVAS TRANSFORM
+      function render() {
+        // Update Zoom Display
+        zoomDisplay.innerText = Math.round(scale * 100) + '%';
+
+        // Apply global translation/zoom matrix on world div
+        canvasWorld.style.transform = `translate3d(${panX}px, ${panY}px, 0) scale(${scale})`;
+
+        // RENDER SHAPES ON THE CANVAS WORLD
+        // Reuse or recreate shape DOMs cleanly to prevent scroll flickering
+        let htmlStr = `
+          <!-- Center origin crosshair -->
+          <div class="absolute w-6 h-px bg-[#404040] left-[-12px] top-0 pointer-events-none"></div>
+          <div class="absolute w-px h-6 bg-[#404040] left-0 top-[-12px] pointer-events-none"></div>
+        `;
+
+        shapes.forEach((shape, index) => {
+          const isSelected = selectedShapeIds.has(shape.id);
+          const isPrimary = selectedShapeId === shape.id;
+          const outlineColor = isPrimary ? '#3b82f6' : '#60a5fa';
+          const outlineStyle = isSelected 
+            ? (shape.locked ? 'outline: 2px dashed #ef4444; outline-offset: 2px;' : `outline: 2px solid ${outlineColor}; outline-offset: 2px;`) 
+            : '';
+            
+          const borderRadiusVal = shape.type === 'circle' ? '50%' : `${shape.borderRadius}px`;
+          const borderStyle = shape.strokeWidth > 0 ? `${shape.strokeWidth}px solid ${shape.strokeColor}` : 'none';
+          const filterStyle = shape.blur > 0 ? `blur(${shape.blur}px)` : 'none';
+          const opacityVal = shape.opacity / 100;
+
+          // Touchscreen optimized high-precision resize handle
+          const resizeHandleHtml = isPrimary && !shape.locked ? `
+            <div class="resize-handle absolute w-6 h-6 bg-accent border-2 border-white right-[-10px] bottom-[-10px] cursor-se-resize z-40 rounded-full pointer-events-auto flex items-center justify-center shadow-lg" data-id="${shape.id}">
+              <i class="codicon codicon-split-horizontal text-white text-[10px] pointer-events-none rotate-45"></i>
+            </div>
+          ` : '';
+
+          if (shape.type === 'text') {
+            const fontStyle = shape.fontFamily ? `font-family: ${shape.fontFamily};` : '';
+            htmlStr += `
+              <div class="shape absolute flex items-center justify-center text-center box-border pointer-events-auto break-all" 
+                   data-id="${shape.id}"
+                   style="
+                     left: ${shape.x}px; 
+                     top: ${shape.y}px; 
+                     width: ${shape.w}px; 
+                     height: ${shape.h}px; 
+                     background: ${shape.fill}; 
+                     border: ${borderStyle}; 
+                     border-radius: ${borderRadiusVal}; 
+                     filter: ${filterStyle}; 
+                     opacity: ${opacityVal}; 
+                     color: ${shape.textColor}; 
+                     font-size: ${shape.fontSize}px;
+                     ${fontStyle}
+                     ${outlineStyle}
+                     user-select: none;
+                     white-space: pre-wrap;
+                     padding: 6px;
+                     z-index: ${index};
+                   ">
+                <div class="text-content w-full h-full flex items-center justify-center outline-none select-text cursor-text overflow-hidden" style="pointer-events: auto;">${shape.text}</div>
+                ${resizeHandleHtml}
+                ${shape.locked ? `
+                  <!-- Mini lock overlay icon -->
+                  <div class="absolute top-1 right-1 bg-red-500/20 text-red-400 px-1 py-0.5 rounded text-[8px] pointer-events-none flex items-center justify-center">
+                    <i class="codicon codicon-lock text-[10px]"></i>
+                  </div>` : ''}
+                ${shape.groupId ? `
+                  <!-- Mini group badge -->
+                  <div class="absolute bottom-1 left-1 bg-accent/30 text-white px-1 py-0.2 rounded text-[7px] pointer-events-none flex items-center justify-center font-mono">
+                    GRP
+                  </div>` : ''}
+              </div>
+            `;
+          } else if (shape.type === 'image') {
+            htmlStr += `
+              <div class="shape absolute box-border pointer-events-auto overflow-hidden" 
+                   data-id="${shape.id}"
+                   style="
+                     left: ${shape.x}px; 
+                     top: ${shape.y}px; 
+                     width: ${shape.w}px; 
+                     height: ${shape.h}px; 
+                     border: ${borderStyle}; 
+                     border-radius: ${borderRadiusVal}; 
+                     filter: ${filterStyle}; 
+                     opacity: ${opacityVal}; 
+                     ${outlineStyle}
+                     user-select: none;
+                     z-index: ${index};
+                   ">
+                <img src="${shape.src || ''}" style="width:100%; height:100%; object-fit:cover; pointer-events:none;" />
+                ${resizeHandleHtml}
+                ${shape.locked ? `
+                  <!-- Mini lock overlay icon -->
+                  <div class="absolute top-1 right-1 bg-red-500/20 text-red-400 px-1 py-0.5 rounded text-[8px] pointer-events-none flex items-center justify-center">
+                    <i class="codicon codicon-lock text-[10px]"></i>
+                  </div>` : ''}
+                ${shape.groupId ? `
+                  <!-- Mini group badge -->
+                  <div class="absolute bottom-1 left-1 bg-accent/30 text-white px-1 py-0.2 rounded text-[7px] pointer-events-none flex items-center justify-center font-mono">
+                    GRP
+                  </div>` : ''}
+              </div>
+            `;
+          } else {
+            htmlStr += `
+              <div class="shape absolute box-border pointer-events-auto" 
+                   data-id="${shape.id}"
+                   style="
+                     left: ${shape.x}px; 
+                     top: ${shape.y}px; 
+                     width: ${shape.w}px; 
+                     height: ${shape.h}px; 
+                     background: ${shape.fill}; 
+                     border: ${borderStyle}; 
+                     border-radius: ${borderRadiusVal}; 
+                     filter: ${filterStyle}; 
+                     opacity: ${opacityVal}; 
+                     ${outlineStyle}
+                     user-select: none;
+                     z-index: ${index};
+                   ">
+                ${resizeHandleHtml}
+                ${shape.locked ? `
+                  <!-- Mini lock overlay icon -->
+                  <div class="absolute top-1 right-1 bg-red-500/20 text-red-400 px-1 py-0.5 rounded text-[8px] pointer-events-none flex items-center justify-center">
+                    <i class="codicon codicon-lock text-[10px]"></i>
+                  </div>` : ''}
+                ${shape.groupId ? `
+                  <!-- Mini group badge -->
+                  <div class="absolute bottom-1 left-1 bg-accent/30 text-white px-1 py-0.2 rounded text-[7px] pointer-events-none flex items-center justify-center font-mono">
+                    GRP
+                  </div>` : ''}
+              </div>
+            `;
+          }
+        });
+
+        canvasWorld.innerHTML = htmlStr;
+
+        // Render Layer lists
+        renderLayersList();
+      }
+
+      // RENDER LAYERS LIST IN BOTH DESKTOP & MOBILE PANELS
+      function renderLayersList() {
+        // Count totals
+        const count = shapes.length;
+        document.getElementById('layers-count-desktop').innerText = count;
+        document.getElementById('layers-count-mobile').innerText = count;
+
+        let listHtml = '';
+        if (count === 0) {
+          listHtml = `<div class="text-xs text-textSec font-mono text-center py-8">No layers yet</div>`;
+        } else {
+          // Render reverse order (newest on top)
+          [...shapes].reverse().forEach(shape => {
+            const isSelected = selectedShapeIds.has(shape.id);
+            const activeBgClass = isSelected ? 'bg-accent/15 border-accent text-accent' : 'bg-transparent border-transparent text-text hover:bg-border/30';
+            
+            // SVG icon based on shape type
+            let shapeIcon = '';
+            if (shape.type === 'rectangle') {
+              shapeIcon = `
+                <svg class="w-3.5 h-3.5 text-textSec shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2" />
+                </svg>`;
+            } else if (shape.type === 'circle') {
+              shapeIcon = `
+                <svg class="w-3.5 h-3.5 text-textSec shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="9" />
+                </svg>`;
+            } else if (shape.type === 'text') {
+              shapeIcon = `
+                <svg class="w-3.5 h-3.5 text-textSec shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 7V4h16v3M12 4v16" />
+                </svg>`;
+            } else if (shape.type === 'image') {
+              shapeIcon = `
+                <svg class="w-3.5 h-3.5 text-textSec shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2" />
+                  <circle cx="8.5" cy="8.5" r="1.5" />
+                  <polyline points="21 15 16 10 5 21" />
+                </svg>`;
+            }
+
+            const groupBadge = shape.groupId ? `<span class="ml-1.5 px-1 bg-accent/20 text-accent text-[8px] font-mono rounded">GRP</span>` : '';
+
+            listHtml += `
+              <div class="group flex items-center justify-between border pl-2.5 pr-1.5 py-1.5 rounded transition-all ${activeBgClass}">
+                <!-- Multi-select checkbox: adds/removes this shape from the selection -->
+                <button onclick="event.stopPropagation(); selectShape('${shape.id}', true)" class="shrink-0 mr-2 w-4 h-4 rounded border ${isSelected ? 'bg-accent border-accent' : 'border-textSec/40 bg-transparent'} flex items-center justify-center" title="Add/remove from selection">
+                  ${isSelected ? `<i class="codicon codicon-check text-white" style="font-size: 10px;"></i>` : ''}
+                </button>
+                <!-- Tap to select name -->
+                <button onclick="selectShape('${shape.id}')" class="flex-1 flex items-center space-x-2.5 text-left text-xs font-mono font-medium truncate focus:outline-none">
+                  ${shapeIcon}
+                  <span class="truncate">${shape.name}</span>
+                  ${groupBadge}
+                </button>
+                
+                <!-- Quick controls -->
+                <div class="flex items-center space-x-1.5">
+                  <button onclick="event.stopPropagation(); toggleLock('${shape.id}')" class="p-1 rounded text-textSec hover:text-text hover:bg-border/50 transition-colors" title="Lock Toggle">
+                    ${shape.locked ? `
+                      <i class="codicon codicon-lock text-red-500" style="font-size: 13px;"></i>
+                    ` : `
+                      <i class="codicon codicon-unlock text-textSec/50 group-hover:text-textSec" style="font-size: 13px;"></i>
+                    `}
+                  </button>
+                  <button onclick="event.stopPropagation(); deleteShape('${shape.id}')" class="p-1 rounded text-textSec hover:text-red-500 hover:bg-red-500/10 transition-colors" title="Delete">
+                    <i class="codicon codicon-trash" style="font-size: 13px;"></i>
+                  </button>
+                </div>
+              </div>
+            `;
+          });
+        }
+
+        document.getElementById('layer-list-desktop').innerHTML = listHtml;
+        document.getElementById('layer-list-mobile').innerHTML = listHtml;
+      }
+
+      // Enable/disable floating edit-bar buttons based on current selection + clipboard state.
+      // Mobile-first app (no keyboard), so these buttons ARE the shortcuts — they need to
+      // visually reflect what's actually tappable instead of silently no-op-ing or alert()-ing.
+      function updateFloatingEditBar() {
+        const hasSelection = selectedShapeIds.size > 0;
+        const hasMultiSelection = selectedShapeIds.size >= 2;
+        const hasClipboard = clipboardShapes.length > 0;
+        const hasGroupedSelection = Array.from(selectedShapeIds).some(id => {
+          const s = shapes.find(sh => sh.id === id);
+          return s && s.groupId;
+        });
+
+        const setBtnState = (btnId, enabled) => {
+          const btn = document.getElementById(btnId);
+          if (!btn) return;
+          btn.disabled = !enabled;
+          btn.classList.toggle('opacity-30', !enabled);
+          btn.classList.toggle('pointer-events-none', !enabled);
+          btn.classList.toggle('cursor-not-allowed', !enabled);
+        };
+
+        setBtnState('btn-copy-shape', hasSelection);
+        setBtnState('btn-paste-shape', hasClipboard);
+        setBtnState('btn-duplicate-shape', hasSelection);
+        setBtnState('btn-group-shapes', hasMultiSelection);
+        setBtnState('btn-ungroup-shapes', hasGroupedSelection);
+        setBtnState('btn-delete-selected', hasSelection);
+      }
+
+      // RENDER / UPDATE PROPERTIES PANEL IN BOTH SCREEN SIZES
+      function updatePropertiesPanel() {
+        updateFloatingEditBar();
+        const desktopPanel = document.getElementById('properties-panel-desktop');
+        const mobilePanel = document.getElementById('properties-panel-properties'); // Tab Content in sheet
+        
+        if (!selectedShapeId) {
+          const fallbackHtml = `
+            <div class="flex flex-col items-center justify-center py-12 text-center space-y-2">
+              <svg class="w-8 h-8 text-textSec/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
+              </svg>
+              <p class="text-xs text-textSec font-mono">No element selected</p>
+            </div>
+          `;
+          desktopPanel.innerHTML = fallbackHtml;
+          
+          // Mobile counterpart fallback
+          const mobilePanelContainer = document.getElementById('mobile-tab-properties');
+          mobilePanelContainer.innerHTML = `
+            <div class="flex flex-col items-center justify-center h-full text-center space-y-1">
+              <span class="text-xs font-mono font-bold text-textSec uppercase tracking-wider mb-2">Properties</span>
+              <p class="text-[11px] text-textSec font-mono">Please select a layer or shape on the canvas</p>
+            </div>
+          `;
+          return;
+        }
+
+        const shape = shapes.find(s => s.id === selectedShapeId);
+        if (!shape) return;
+
+        // Custom inputs HTML
+        const isText = shape.type === 'text';
+        
+        const contentHtml = `
+          <!-- Position & Dimension Box (Precise Typing) -->
+          <div class="space-y-3 border-b border-border/50 pb-4">
+            <span class="text-[10px] font-mono font-bold text-textSec uppercase tracking-wider">Geometry</span>
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="text-[9px] font-mono text-textSec uppercase tracking-wider block mb-1">X Pos</label>
+                <input type="number" value="${shape.x}" oninput="updateShapeVal('x', this.value)" class="bg-[#0a0a0a] border border-border text-text font-mono text-xs rounded px-2.5 py-1.5 focus:outline-none focus:border-accent w-full" />
+              </div>
+              <div>
+                <label class="text-[9px] font-mono text-textSec uppercase tracking-wider block mb-1">Y Pos</label>
+                <input type="number" value="${shape.y}" oninput="updateShapeVal('y', this.value)" class="bg-[#0a0a0a] border border-border text-text font-mono text-xs rounded px-2.5 py-1.5 focus:outline-none focus:border-accent w-full" />
+              </div>
+              <div>
+                <label class="text-[9px] font-mono text-textSec uppercase tracking-wider block mb-1">Width</label>
+                <input type="number" value="${shape.w}" oninput="updateShapeVal('w', this.value)" class="bg-[#0a0a0a] border border-border text-text font-mono text-xs rounded px-2.5 py-1.5 focus:outline-none focus:border-accent w-full" />
+              </div>
+              <div>
+                <label class="text-[9px] font-mono text-textSec uppercase tracking-wider block mb-1">Height</label>
+                <input type="number" value="${shape.h}" oninput="updateShapeVal('h', this.value)" class="bg-[#0a0a0a] border border-border text-text font-mono text-xs rounded px-2.5 py-1.5 focus:outline-none focus:border-accent w-full" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Color Styles -->
+          <div class="space-y-3 border-b border-border/50 pb-4">
+            <span class="text-[10px] font-mono font-bold text-textSec uppercase tracking-wider">Appearance</span>
+            <div class="space-y-2">
+              <div>
+                <label class="text-[9px] font-mono text-textSec uppercase tracking-wider block mb-1">Fill Color (HEX / Color Picker)</label>
+                <div class="flex items-center space-x-2">
+                  <!-- Native Interactive Swatch Color Picker -->
+                  <div class="relative w-8 h-8 rounded border border-border/80 shrink-0 overflow-hidden cursor-pointer shadow-inner" style="background-color: ${shape.fill === 'transparent' ? 'transparent' : shape.fill}; background-image: ${shape.fill === 'transparent' ? 'linear-gradient(45deg, #333 25%, transparent 25%, transparent 75%, #333 75%), linear-gradient(45deg, #333 25%, #111 25%, #111 75%, #333 75%)' : 'none'}; background-size: ${shape.fill === 'transparent' ? '8px 8px' : 'auto'}; background-position: ${shape.fill === 'transparent' ? '0 0, 4px 4px' : 'auto'};" title="Tap to open color picker">
+                    <input type="color" value="${shape.fill && shape.fill.startsWith('#') && (shape.fill.length === 4 || shape.fill.length === 7) ? shape.fill : '#3b82f6'}" oninput="updateShapeVal('fill', this.value); document.getElementById('fill-input').value = this.value; render();" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full scale-150" />
+                  </div>
+                  <input id="fill-input" type="text" value="${shape.fill}" oninput="updateShapeVal('fill', this.value); render();" class="bg-[#0a0a0a] border border-border text-text font-mono text-xs rounded px-2.5 py-1.5 focus:outline-none focus:border-accent flex-1" placeholder="#3b82f6" />
+                  <button onclick="updateShapeVal('fill', 'transparent'); document.getElementById('fill-input').value = 'transparent'; render(); updatePropertiesPanel();" class="px-2 py-1.5 bg-[#0c0c0c] border border-border/40 hover:bg-[#161616] rounded text-[10px] font-mono text-textSec transition-colors" title="Make background transparent">
+                    Clear
+                  </button>
+                </div>
+              </div>
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="text-[9px] font-mono text-textSec uppercase tracking-wider block mb-1">Opacity (%)</label>
+                  <input type="number" min="0" max="100" value="${shape.opacity}" oninput="updateShapeVal('opacity', this.value)" class="bg-[#0a0a0a] border border-border text-text font-mono text-xs rounded px-2.5 py-1.5 focus:outline-none focus:border-accent w-full" />
+                </div>
+                <div>
+                  <label class="text-[9px] font-mono text-textSec uppercase tracking-wider block mb-1">Border Radius</label>
+                  <input type="number" value="${shape.borderRadius}" ${shape.type === 'circle' ? 'disabled placeholder="Circle"' : ''} oninput="updateShapeVal('borderRadius', this.value)" class="bg-[#0a0a0a] disabled:opacity-40 border border-border text-text font-mono text-xs rounded px-2.5 py-1.5 focus:outline-none focus:border-accent w-full" />
+                </div>
+              </div>
+              <div>
+                <label class="text-[9px] font-mono text-textSec uppercase tracking-wider block mb-1">Blur Filter (px)</label>
+                <input type="number" value="${shape.blur}" oninput="updateShapeVal('blur', this.value)" class="bg-[#0a0a0a] border border-border text-text font-mono text-xs rounded px-2.5 py-1.5 focus:outline-none focus:border-accent w-full" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Borders Outline -->
+          <div class="space-y-3 border-b border-border/50 pb-4">
+            <span class="text-[10px] font-mono font-bold text-textSec uppercase tracking-wider">Border Outline</span>
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="text-[9px] font-mono text-textSec uppercase tracking-wider block mb-1">Thickness</label>
+                <input type="number" value="${shape.strokeWidth}" oninput="updateShapeVal('strokeWidth', this.value)" class="bg-[#0a0a0a] border border-border text-text font-mono text-xs rounded px-2.5 py-1.5 focus:outline-none focus:border-accent w-full" />
+              </div>
+              <div>
+                <label class="text-[9px] font-mono text-textSec uppercase tracking-wider block mb-1">Stroke Color</label>
+                <div class="flex items-center space-x-1.5">
+                  <div class="relative w-6 h-6 rounded border border-border shrink-0 overflow-hidden cursor-pointer" style="background-color: ${shape.strokeColor === 'transparent' ? 'transparent' : shape.strokeColor}; background-image: ${shape.strokeColor === 'transparent' ? 'linear-gradient(45deg, #333 25%, transparent 25%, transparent 75%, #333 75%), linear-gradient(45deg, #333 25%, #111 25%, #111 75%, #333 75%)' : 'none'}; background-size: ${shape.strokeColor === 'transparent' ? '6px 6px' : 'auto'};" title="Tap to open color picker">
+                    <input type="color" value="${shape.strokeColor && shape.strokeColor.startsWith('#') && (shape.strokeColor.length === 4 || shape.strokeColor.length === 7) ? shape.strokeColor : '#000000'}" oninput="updateShapeVal('strokeColor', this.value); document.getElementById('stroke-input').value = this.value; render();" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full scale-150" />
+                  </div>
+                  <input id="stroke-input" type="text" value="${shape.strokeColor}" oninput="updateShapeVal('strokeColor', this.value); render();" class="bg-[#0a0a0a] border border-border text-text font-mono text-xs rounded px-1.5 py-1 focus:outline-none focus:border-accent flex-1" placeholder="#262626" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Specific Text Fields -->
+          ${isText ? `
+          <div class="space-y-3 border-b border-border/50 pb-4">
+            <span class="text-[10px] font-mono font-bold text-textSec uppercase tracking-wider">Text Styling</span>
+            <div class="space-y-2">
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="text-[9px] font-mono text-textSec uppercase tracking-wider block mb-1">Font Size</label>
+                  <input type="number" value="${shape.fontSize}" oninput="updateShapeVal('fontSize', this.value)" class="bg-[#0a0a0a] border border-border text-text font-mono text-xs rounded px-2.5 py-1.5 focus:outline-none focus:border-accent w-full" />
+                </div>
+                <div>
+                  <label class="text-[9px] font-mono text-textSec uppercase tracking-wider block mb-1">Text Color</label>
+                  <div class="flex items-center space-x-1.5">
+                    <div class="relative w-6 h-6 rounded border border-border shrink-0 overflow-hidden cursor-pointer" style="background-color: ${shape.textColor}" title="Tap to open color picker">
+                      <input type="color" value="${shape.textColor && shape.textColor.startsWith('#') && (shape.textColor.length === 4 || shape.textColor.length === 7) ? shape.textColor : '#ffffff'}" oninput="updateShapeVal('textColor', this.value); document.getElementById('text-color-input').value = this.value; render();" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full scale-150" />
+                    </div>
+                    <input id="text-color-input" type="text" value="${shape.textColor}" oninput="updateShapeVal('textColor', this.value); render();" class="bg-[#0a0a0a] border border-border text-text font-mono text-xs rounded px-1.5 py-1 focus:outline-none focus:border-accent flex-1" placeholder="#ffffff" />
+                  </div>
+                </div>
+              </div>
+              <div>
+                <label class="text-[9px] font-mono text-textSec uppercase tracking-wider block mb-1">Text Content</label>
+                <textarea rows="3" oninput="updateShapeVal('text', this.value)" class="bg-[#0a0a0a] border border-border text-text font-mono text-xs rounded px-2.5 py-1.5 focus:outline-none focus:border-accent w-full resize-none">${shape.text}</textarea>
+              </div>
+
+              <!-- Font Family Display & Custom Fonts List -->
+              <div class="space-y-1.5 pt-1">
+                <label class="text-[9px] font-mono text-textSec uppercase tracking-wider block">Font Family</label>
+                <div class="flex flex-wrap gap-1 max-h-[140px] overflow-y-auto pr-1">
+                  <!-- Default system fallbacks -->
+                  <button onclick="applyFontFamily('sans-serif')" class="px-2 py-1 text-[10px] font-mono rounded transition-all ${(!shape.fontFamily || shape.fontFamily === 'sans-serif') ? 'bg-accent text-white font-bold shadow' : 'bg-[#0c0c0c] text-textSec border border-border/40 hover:bg-[#161616]'}" style="font-family: sans-serif;">
+                    Sans-Serif
+                  </button>
+                  <button onclick="applyFontFamily('serif')" class="px-2 py-1 text-[10px] font-mono rounded transition-all ${(shape.fontFamily === 'serif') ? 'bg-accent text-white font-bold shadow' : 'bg-[#0c0c0c] text-textSec border border-border/40 hover:bg-[#161616]'}" style="font-family: serif;">
+                    Serif
+                  </button>
+                  <button onclick="applyFontFamily('monospace')" class="px-2 py-1 text-[10px] font-mono rounded transition-all ${(shape.fontFamily === 'monospace') ? 'bg-accent text-white font-bold shadow' : 'bg-[#0c0c0c] text-textSec border border-border/40 hover:bg-[#161616]'}" style="font-family: monospace;">
+                    Monospace
+                  </button>
+                  
+                  <!-- Dynamic loaded Google Fonts -->
+                  ${customFonts.map(font => {
+                    const isSelected = shape.fontFamily && (shape.fontFamily.startsWith(`'${font.name}'`) || shape.fontFamily.startsWith(font.name) || shape.fontFamily.includes(font.name));
+                    return `
+                      <div class="relative group inline-flex">
+                        <button onclick="applyFontFamily('\\'${font.name}\\', sans-serif')" class="px-2 py-1 text-[10px] rounded transition-all ${isSelected ? 'bg-accent text-white font-bold shadow' : 'bg-[#0c0c0c] text-textSec border border-border/40 hover:bg-[#161616]'}" style="font-family: '${font.name}', sans-serif;">
+                          ${font.name}
+                        </button>
+                        <button onclick="deleteCustomFont('${font.name}')" class="absolute -top-1 -right-1 hidden group-hover:flex w-3.5 h-3.5 bg-red-500 hover:bg-red-600 rounded-full items-center justify-center text-white text-[9px] font-bold shadow transition-all" title="Delete Font">
+                          &times;
+                        </button>
+                      </div>
+                    `;
+                  }).join('')}
+                </div>
+              </div>
+
+              <!-- Add Google Font Section -->
+              <div class="bg-[#070707] border border-border/30 rounded p-2.5 mt-2 space-y-2">
+                <span class="text-[9px] font-mono font-bold text-accent uppercase tracking-wider block">Add Google Font</span>
+                <div>
+                  <label class="text-[8px] font-mono text-textSec uppercase tracking-wider block mb-0.5">Font Name / Family</label>
+                  <input id="new-font-name" type="text" placeholder="e.g. Poppins" class="bg-[#0a0a0a] border border-border text-text font-mono text-[10px] rounded px-2 py-1 focus:outline-none focus:border-accent w-full" />
+                </div>
+                <div>
+                  <label class="text-[8px] font-mono text-textSec uppercase tracking-wider block mb-0.5">Google Font CSS URL</label>
+                  <input id="new-font-url" type="text" placeholder="https://fonts.googleapis.com/css2?..." class="bg-[#0a0a0a] border border-border text-text font-mono text-[10px] rounded px-2 py-1 focus:outline-none focus:border-accent w-full" />
+                </div>
+                <button onclick="addNewCustomFont()" class="w-full py-1 bg-accent/15 hover:bg-accent/25 border border-accent/30 text-accent font-mono text-[10px] rounded transition-all font-semibold flex items-center justify-center space-x-1">
+                  <i class="codicon codicon-cloud-download text-[11px] mr-1"></i>
+                  <span>Import Google Font</span>
+                </button>
+              </div>
+
+            </div>
+          </div>
+          ` : ''}
+
+          <!-- Specific Image Fields -->
+          ${shape.type === 'image' ? `
+          <div class="space-y-3 border-b border-border/50 pb-4">
+            <span class="text-[10px] font-mono font-bold text-textSec uppercase tracking-wider font-semibold">Image Source</span>
+            <div class="space-y-2">
+              <div>
+                <label class="text-[9px] font-mono text-textSec uppercase tracking-wider block mb-1">Image URL / Data URL</label>
+                <div class="flex flex-col space-y-2">
+                  <textarea rows="4" oninput="updateShapeVal('src', this.value); render();" class="bg-[#0a0a0a] border border-border text-text font-mono text-xs rounded px-2.5 py-1.5 focus:outline-none focus:border-accent w-full resize-none break-all" placeholder="Paste an image URL (e.g., https://...) or data:image/...">${shape.src || ''}</textarea>
+                  <button onclick="document.getElementById('properties-image-uploader').click()" class="w-full py-1.5 bg-[#0c0c0c] border border-border/40 hover:bg-[#161616] text-text font-mono text-[10px] rounded transition-all font-semibold flex items-center justify-center">
+                    <i class="codicon codicon-device-camera text-[11px] mr-1"></i>
+                    <span>Upload New Image</span>
+                  </button>
+                  <input id="properties-image-uploader" type="file" accept="image/*" class="hidden" onchange="const file = this.files[0]; if(file){ const r = new FileReader(); r.onload = (e) => { updateShapeVal('src', e.target.result); render(); updatePropertiesPanel(); }; r.readAsDataURL(file); }" />
+                </div>
+              </div>
+            </div>
+          </div>
+          ` : ''}
+
+          <!-- Layering controls (z-index) -->
+          <div class="space-y-3 border-b border-border/50 pb-4">
+            <span class="text-[10px] font-mono font-bold text-textSec uppercase tracking-wider">Layering</span>
+            <div class="flex space-x-2">
+              <button onclick="bringToFront('${shape.id}')" class="flex-1 py-1.5 bg-[#0a0a0a] hover:bg-border/30 border border-border text-text text-xs font-mono rounded transition-colors flex items-center justify-center space-x-1.5">
+                <i class="codicon codicon-chevron-up text-[12px] mr-1.5"></i>
+                <span>Bring to Front</span>
+              </button>
+              <button onclick="sendToBack('${shape.id}')" class="flex-1 py-1.5 bg-[#0a0a0a] hover:bg-border/30 border border-border text-text text-xs font-mono rounded transition-colors flex items-center justify-center space-x-1.5">
+                <i class="codicon codicon-chevron-down text-[12px] mr-1.5"></i>
+                <span>Send to Back</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Lock toggle & delete controls -->
+          <div class="pt-2 flex items-center justify-between space-x-3">
+            <button onclick="toggleLock('${shape.id}')" class="flex-1 py-2 border ${shape.locked ? 'bg-red-500/10 border-red-500 text-red-500 hover:bg-red-500/15' : 'bg-[#0a0a0a] hover:bg-border/30 border-border text-text'} text-xs font-mono rounded transition-colors flex items-center justify-center space-x-1.5">
+              ${shape.locked ? `
+                <i class="codicon codicon-lock text-[12px] mr-1.5"></i>
+                <span>Locked</span>
+              ` : `
+                <i class="codicon codicon-unlock text-[12px] mr-1.5"></i>
+                <span>Lock Shape</span>
+              `}
+            </button>
+            <button onclick="deleteShape('${shape.id}')" class="py-2 px-3 bg-red-600/10 hover:bg-red-600/20 border border-red-600/30 text-red-400 text-xs rounded transition-colors flex items-center justify-center" title="Delete Element">
+              <i class="codicon codicon-trash text-[13px]"></i>
+            </button>
+          </div>
+        `;
+
+        desktopPanel.innerHTML = contentHtml;
+
+        // Mobile Tab counter-part - Render the exact same controls with specific mobile container overrides
+        const mobileTabPanel = document.getElementById('mobile-tab-properties');
+        mobileTabPanel.innerHTML = `
+          <div class="flex items-center justify-between mb-2 pb-2 border-b border-border/50">
+            <span class="text-xs font-mono font-bold text-accent uppercase tracking-wider">${shape.name}</span>
+            <span class="text-[10px] font-mono text-textSec uppercase">[${shape.type}]</span>
+          </div>
+          <div class="space-y-4">
+            ${contentHtml}
+          </div>
+        `;
+      }
+
+      // ==========================================
+      // AI COPILOT BRING-YOUR-OWN-KEY (BYOK) ENGINE
+      // ==========================================
+      
+      const AI_SYSTEM_PROMPT = `You are "NOWACTION Copilot", an AI design buddy for NOWACTION - a minimalist, mobile-first spec design tool.
+The user is designing layout components (rectangles, circles, and text shapes).
+You can generate and append shapes directly to the user's canvas by including a JSON block at the very end of your response.
+
+To add shapes, output a JSON block enclosed in \`\`\`json and \`\`\` code fence.
+Your JSON object MUST conform to this exact schema:
+{
+  "action": "add_shapes",
+  "shapes": [
+    {
+      "type": "rectangle" | "circle" | "text",
+      "name": "string (descriptive name)",
+      "x": number (relative to world origin. standard visible viewport is roughly -200 to 200),
+      "y": number (relative to world origin. standard visible viewport is roughly -250 to 250),
+      "w": number (width in pixels),
+      "h": number (height in pixels),
+      "fill": "string (hex color like #3b82f6 or 'transparent')",
+      "strokeWidth": number (0 to 10),
+      "strokeColor": "string (hex color)",
+      "borderRadius": number (0 to 50, only applicable for rectangle),
+      "opacity": number (0 to 100),
+      "fontSize": number (only for text, default 14),
+      "textColor": "string (only for text, default #ffffff)",
+      "text": "string (only for text, text content)",
+      "fontFamily": "string (optional font family, e.g. 'Poppins', 'sans-serif', 'serif', 'Space Grotesk')"
+    }
+  ]
+}
+
+Example: If the user asks for a blue primary button, you can describe it briefly in human words, then append:
+\`\`\`json
+{
+  "action": "add_shapes",
+  "shapes": [
+    {
+      "type": "rectangle",
+      "name": "Button Background",
+      "x": -100,
+      "y": 50,
+      "w": 200,
+      "h": 44,
+      "fill": "#3b82f6",
+      "strokeWidth": 0,
+      "strokeColor": "transparent",
+      "borderRadius": 8,
+      "opacity": 100
+    },
+    {
+      "type": "text",
+      "name": "Button Label",
+      "x": -100,
+      "y": 50,
+      "w": 200,
+      "h": 44,
+      "fill": "transparent",
+      "strokeWidth": 0,
+      "strokeColor": "transparent",
+      "opacity": 100,
+      "fontSize": 14,
+      "textColor": "#ffffff",
+      "text": "Get Started",
+      "fontFamily": "sans-serif"
+    }
+  ]
+}
+\`\`\`
+
+IMPORTANT INSTRUCTIONS:
+1. Speak in English.
+2. Keep your descriptions concise, helpful, and focused on design principles.
+3. Keep the JSON shapes perfectly positioned so they overlap nicely (e.g. text shape directly overlapping its background rectangle shape with identical x, y, w, h).
+4. Do not output anything after the \`\`\`json block. Keep the JSON code block clean and parsable.
+`;
+
+      let aiMessages = [
+        { role: 'assistant', content: 'Hello! I am your NOWACTION design AI assistant. I can help you create layouts, write text content, or provide design suggestions!\n\nBy default, I use Google Gemini (free with your server API key, no key input required!). However, you can change the model/provider in the ⚙️ settings menu.' }
+      ];
+      
+      let aiSettings = {
+        provider: 'gemini',
+        apiKey: '',
+        baseUrl: '',
+        model: ''
+      };
+
+      let isAiSidebarOpen = false;
+
+      function loadAiState() {
+        // Load settings
+        const savedSettings = localStorage.getItem('graps_ai_settings_v1');
+        if (savedSettings) {
+          try {
+            aiSettings = JSON.parse(savedSettings);
+          } catch (e) {
+            console.error(e);
+          }
+        }
+        
+        // Load messages
+        const savedMessages = localStorage.getItem('graps_ai_messages_v1');
+        if (savedMessages) {
+          try {
+            aiMessages = JSON.parse(savedMessages);
+          } catch (e) {
+            console.error(e);
+          }
+        }
+
+        // Load sidebar toggle state
+        isAiSidebarOpen = localStorage.getItem('graps_ai_sidebar_open') === 'true';
+        updateAiSidebarVisibility();
+        
+        // Populate inputs
+        populateAiSettingsInputs();
+      }
+
+      function saveAiState() {
+        localStorage.setItem('graps_ai_settings_v1', JSON.stringify(aiSettings));
+        localStorage.setItem('graps_ai_messages_v1', JSON.stringify(aiMessages));
+        localStorage.setItem('graps_ai_sidebar_open', isAiSidebarOpen ? 'true' : 'false');
+      }
+
+      function populateAiSettingsInputs() {
+        const provSelect = document.getElementById('ai-provider-select');
+        const provSelectMob = document.getElementById('ai-provider-select-mobile');
+        const keyInput = document.getElementById('ai-api-key-input');
+        const keyInputMob = document.getElementById('ai-api-key-input-mobile');
+        const baseInput = document.getElementById('ai-base-url-input');
+        const baseInputMob = document.getElementById('ai-base-url-input-mobile');
+        const modelInput = document.getElementById('ai-model-input');
+        const modelInputMob = document.getElementById('ai-model-input-mobile');
+
+        if (provSelect) provSelect.value = aiSettings.provider || 'gemini';
+        if (provSelectMob) provSelectMob.value = aiSettings.provider || 'gemini';
+        if (keyInput) keyInput.value = aiSettings.apiKey || '';
+        if (keyInputMob) keyInputMob.value = aiSettings.apiKey || '';
+        if (baseInput) baseInput.value = aiSettings.baseUrl || '';
+        if (baseInputMob) baseInputMob.value = aiSettings.baseUrl || '';
+        
+        if (modelInput) modelInput.value = aiSettings.model || '';
+        if (modelInputMob) modelInputMob.value = aiSettings.model || '';
+      }
+
+      function updateAiSidebarVisibility() {
+        const sidebar = document.getElementById('ai-chat-sidebar');
+        const toggleBtn = document.getElementById('btn-ai-copilot-toggle');
+        if (isAiSidebarOpen) {
+          sidebar.classList.remove('hidden');
+          toggleBtn.classList.add('bg-accent/25', 'border-accent');
+        } else {
+          sidebar.classList.add('hidden');
+          toggleBtn.classList.remove('bg-accent/25', 'border-accent');
+        }
+      }
+
+      function extractJsonFromMessage(text) {
+        if (!text) return null;
+        const jsonRegex = /```json\s*([\s\S]*?)\s*```/;
+        const match = text.match(jsonRegex);
+        if (match) {
+          try {
+            const parsed = JSON.parse(match[1]);
+            if (parsed && parsed.action === 'add_shapes' && Array.isArray(parsed.shapes)) {
+              return parsed.shapes;
+            }
+          } catch (e) {
+            console.warn("Failed to parse JSON from AI message:", e);
+          }
+        }
+        return null;
+      }
+
+      function renderMessageHtml(msg, index) {
+        if (msg.role === 'user') {
+          return `
+            <div class="p-3 text-xs leading-relaxed rounded-l-lg rounded-br-lg self-end max-w-[85%] bg-accent/20 border border-accent/30 text-text">
+              <span class="font-bold text-textSec text-[10px] font-mono uppercase tracking-wider block mb-1">Anda</span>
+              <div>${msg.content.replace(/\n/g, '<br>')}</div>
+            </div>
+          `;
+        } else {
+          const shapesFromAi = extractJsonFromMessage(msg.content);
+          // Remove the code fence from visual presentation
+          const cleanText = msg.content.replace(/```json\s*[\s\S]*?\s*```/, '').trim();
+          const formattedText = cleanText
+            .replace(/\n/g, '<br>')
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+
+          let html = `
+            <div class="p-3 text-xs leading-relaxed rounded-r-lg rounded-bl-lg self-start max-w-[85%] bg-border/40 border border-border/60 text-text">
+              <span class="font-bold text-accent text-[10px] font-mono uppercase tracking-wider block mb-1">✨ NOWACTION Copilot</span>
+              <div>${formattedText}</div>
+          `;
+
+          if (shapesFromAi && shapesFromAi.length > 0) {
+            const listStr = shapesFromAi.map(s => `• ${s.name || s.type} (${s.type})`).join('<br>');
+            const serializedShapes = JSON.stringify(shapesFromAi).replace(/"/g, '&quot;');
+            html += `
+              <div class="mt-2.5 p-2 bg-[#0d0d0d] border border-accent/20 rounded text-[11px] space-y-2">
+                <div class="font-bold text-accent font-mono text-[9px] uppercase tracking-wider">📦 AI Layout Generated</div>
+                <div class="text-textSec font-mono text-[9px] leading-snug">${listStr}</div>
+                <button onclick="applyAiGeneratedShapes(${serializedShapes})" class="w-full py-1.5 bg-accent/20 hover:bg-accent/35 border border-accent/40 text-accent font-mono text-[10px] rounded transition-all font-bold flex items-center justify-center space-x-1 cursor-pointer">
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
+                  </svg>
+                  <span>Apply to Canvas</span>
+                </button>
+              </div>
+            `;
+          }
+
+          html += `</div>`;
+          return html;
+        }
+      }
+
+      function renderAiMessages() {
+        const desktopList = document.getElementById('ai-messages-list');
+        const mobileList = document.getElementById('ai-messages-list-mobile');
+
+        if (desktopList) {
+          desktopList.innerHTML = aiMessages.map((msg, idx) => renderMessageHtml(msg, idx)).join('');
+          desktopList.scrollTop = desktopList.scrollHeight;
+        }
+
+        if (mobileList) {
+          mobileList.innerHTML = aiMessages.map((msg, idx) => renderMessageHtml(msg, idx)).join('');
+          mobileList.scrollTop = mobileList.scrollHeight;
+        }
+      }
+
+      window.applyAiGeneratedShapes = function(shapesToInject) {
+        if (!Array.isArray(shapesToInject)) return;
+        
+        // Find center of current viewport to place shapes
+        const rect = canvasViewport.getBoundingClientRect();
+        const worldCenterX = Math.round((rect.width / 2 - panX) / scale);
+        const worldCenterY = Math.round((rect.height / 2 - panY) / scale);
+
+        // Calculate bounding box of injected shapes
+        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+        shapesToInject.forEach(s => {
+          const x = s.x || 0;
+          const y = s.y || 0;
+          const w = s.w || 100;
+          const h = s.h || 100;
+          if (x < minX) minX = x;
+          if (x + w > maxX) maxX = x + w;
+          if (y < minY) minY = y;
+          if (y + h > maxY) maxY = y + h;
+        });
+
+        const shapesCenterX = (minX + maxX) / 2;
+        const shapesCenterY = (minY + maxY) / 2;
+
+        const offsetX = isFinite(shapesCenterX) ? worldCenterX - shapesCenterX : 0;
+        const offsetY = isFinite(shapesCenterY) ? worldCenterY - shapesCenterY : 0;
+
+        shapesToInject.forEach((s, idx) => {
+          const newId = `sh-ai-${Date.now()}-${idx}`;
+          const targetX = Math.round((s.x || 0) + offsetX);
+          const targetY = Math.round((s.y || 0) + offsetY);
+
+          const newShape = {
+            id: newId,
+            type: s.type || 'rectangle',
+            name: s.name || `${s.type.charAt(0).toUpperCase() + s.type.slice(1)} AI`,
+            x: targetX,
+            y: targetY,
+            w: s.w || 120,
+            h: s.h || 80,
+            fill: s.fill || '#3b82f6',
+            strokeWidth: s.strokeWidth !== undefined ? Number(s.strokeWidth) : 0,
+            strokeColor: s.strokeColor || '#262626',
+            borderRadius: s.borderRadius !== undefined ? Number(s.borderRadius) : 8,
+            blur: s.blur !== undefined ? Number(s.blur) : 0,
+            opacity: s.opacity !== undefined ? Number(s.opacity) : 100,
+            locked: false
+          };
+
+          if (newShape.type === 'text') {
+            newShape.fontSize = s.fontSize || 14;
+            newShape.textColor = s.textColor || '#ffffff';
+            newShape.fontFamily = s.fontFamily || 'sans-serif';
+            newShape.text = s.text || 'Text Content';
+          }
+
+          shapes.push(newShape);
+        });
+
+        saveToLocalStorage();
+        render();
+        updatePropertiesPanel();
+        renderLayersList();
+        
+        alert(`Berhasil menambahkan ${shapesToInject.length} elemen ke canvas!`);
+      };
+
+      async function sendAiMessage(userText) {
+        if (!userText.trim()) return;
+
+        // Ensure key is provided
+        if (!aiSettings.apiKey) {
+          alert("Please set your API Key first in the AI configuration settings (⚙️ button in the AI Copilot panel)!");
+          // Open settings panel
+          document.getElementById('ai-settings-panel').classList.remove('hidden');
+          document.getElementById('ai-settings-panel-mobile').classList.remove('hidden');
+          return;
+        }
+
+        // Add user message
+        aiMessages.push({ role: 'user', content: userText });
+        renderAiMessages();
+        saveAiState();
+
+        // Clear inputs
+        document.getElementById('ai-chat-input').value = '';
+        document.getElementById('ai-chat-input-mobile').value = '';
+
+        // Insert temporary typing indicator
+        const typingId = 'ai-typing-temp';
+        const desktopList = document.getElementById('ai-messages-list');
+        const mobileList = document.getElementById('ai-messages-list-mobile');
+        
+        const typingHtml = `
+          <div id="${typingId}" class="py-2 px-1 text-xs text-textSec animate-pulse flex items-center space-x-1.5 self-start">
+            <span class="font-bold text-accent text-[10px] font-mono uppercase tracking-wider">NOWACTION Copilot is typing...</span>
+          </div>
+        `;
+        if (desktopList) desktopList.insertAdjacentHTML('beforeend', typingHtml);
+        if (mobileList) mobileList.insertAdjacentHTML('beforeend', typingHtml);
+        if (desktopList) desktopList.scrollTop = desktopList.scrollHeight;
+        if (mobileList) mobileList.scrollTop = mobileList.scrollHeight;
+
+        try {
+          // Prepare payload for local Express proxy
+          const messagesPayload = [
+            { role: 'system', content: AI_SYSTEM_PROMPT },
+            ...aiMessages
+          ];
+
+          const response = await fetch('/api/ai-proxy', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              provider: aiSettings.provider,
+              apiKey: aiSettings.apiKey,
+              baseUrl: aiSettings.baseUrl || undefined,
+              model: aiSettings.model || undefined,
+              messages: messagesPayload
+            })
+          });
+
+          // Remove typing indicator
+          const indicatorD = document.getElementById(typingId);
+          if (indicatorD) indicatorD.remove();
+
+          if (!response.ok) {
+            const errData = await response.json();
+            throw new Error(errData.error || 'Fetch failed on AI proxy.');
+          }
+
+          const data = await response.json();
+          const assistantContent = data.choices && data.choices[0] && data.choices[0].message
+            ? data.choices[0].message.content
+            : 'Sorry, I did not receive a valid response.';
+
+          aiMessages.push({ role: 'assistant', content: assistantContent });
+          renderAiMessages();
+          saveAiState();
+
+        } catch (error) {
+          console.error("AI Request Failed:", error);
+          const indicatorD = document.getElementById(typingId);
+          if (indicatorD) indicatorD.remove();
+
+          // Add notice
+          aiMessages.push({
+            role: 'assistant',
+            content: `⚠️ **Failed to contact AI**: ${error.message || 'Connection error.'}\n\nPlease double check your API Key, Provider, and Base URL in the ⚙️ settings.`
+          });
+          renderAiMessages();
+          saveAiState();
+        }
+      }
+
+      function setupAiEventListeners() {
+        // Toggle desktop sidebar
+        const toggleBtn = document.getElementById('btn-ai-copilot-toggle');
+        if (toggleBtn) {
+          toggleBtn.addEventListener('click', () => {
+            isAiSidebarOpen = !isAiSidebarOpen;
+            updateAiSidebarVisibility();
+            saveAiState();
+            if (isAiSidebarOpen) {
+              setTimeout(renderAiMessages, 50);
+            }
+          });
+        }
+
+        const closeBtn = document.getElementById('btn-ai-sidebar-close');
+        if (closeBtn) {
+          closeBtn.addEventListener('click', () => {
+            isAiSidebarOpen = false;
+            updateAiSidebarVisibility();
+            saveAiState();
+          });
+        }
+
+        // Toggle settings panel (desktop & mobile)
+        const settingsToggle = document.getElementById('btn-ai-settings-toggle');
+        if (settingsToggle) {
+          settingsToggle.addEventListener('click', () => {
+            const panel = document.getElementById('ai-settings-panel');
+            panel.classList.toggle('hidden');
+          });
+        }
+
+        const settingsToggleMob = document.getElementById('btn-ai-settings-toggle-mobile');
+        if (settingsToggleMob) {
+          settingsToggleMob.addEventListener('click', () => {
+            const panel = document.getElementById('ai-settings-panel-mobile');
+            panel.classList.toggle('hidden');
+          });
+        }
+
+        // Save settings (desktop)
+        const saveBtn = document.getElementById('btn-save-ai-settings');
+        if (saveBtn) {
+          saveBtn.addEventListener('click', () => {
+            const provider = document.getElementById('ai-provider-select').value;
+            const apiKey = document.getElementById('ai-api-key-input').value.trim();
+            const baseUrl = document.getElementById('ai-base-url-input').value.trim();
+            const model = document.getElementById('ai-model-input').value.trim();
+
+            aiSettings = { provider, apiKey, baseUrl, model };
+            saveAiState();
+            saveProjectState();
+            populateAiSettingsInputs();
+            document.getElementById('ai-settings-panel').classList.add('hidden');
+            alert('AI Copilot configuration successfully saved!');
+          });
+        }
+
+        // Save settings (mobile)
+        const saveBtnMob = document.getElementById('btn-save-ai-settings-mobile');
+        if (saveBtnMob) {
+          saveBtnMob.addEventListener('click', () => {
+            const provider = document.getElementById('ai-provider-select-mobile').value;
+            const apiKey = document.getElementById('ai-api-key-input-mobile').value.trim();
+            const baseUrl = document.getElementById('ai-base-url-input-mobile').value.trim();
+            const model = document.getElementById('ai-model-input-mobile').value.trim();
+
+            aiSettings = { provider, apiKey, baseUrl, model };
+            saveAiState();
+            saveProjectState();
+            populateAiSettingsInputs();
+            document.getElementById('ai-settings-panel-mobile').classList.add('hidden');
+            alert('AI Copilot configuration successfully saved!');
+          });
+        }
+
+        // Sync provider defaults on selection
+        const provSelect = document.getElementById('ai-provider-select');
+        if (provSelect) {
+          provSelect.addEventListener('change', (e) => {
+            const prov = e.target.value;
+            const modelInput = document.getElementById('ai-model-input');
+            const baseInput = document.getElementById('ai-base-url-input');
+            if (prov === 'anthropic') {
+              if (modelInput) modelInput.value = 'claude-3-5-sonnet-20241022';
+              if (baseInput) baseInput.placeholder = 'https://api.anthropic.com';
+            } else {
+              if (modelInput) modelInput.value = 'gpt-4o-mini';
+              if (baseInput) baseInput.placeholder = 'https://api.openai.com/v1';
+            }
+          });
+        }
+
+        const provSelectMob = document.getElementById('ai-provider-select-mobile');
+        if (provSelectMob) {
+          provSelectMob.addEventListener('change', (e) => {
+            const prov = e.target.value;
+            const modelInputMob = document.getElementById('ai-model-input-mobile');
+            const baseInputMob = document.getElementById('ai-base-url-input-mobile');
+            if (prov === 'anthropic') {
+              if (modelInputMob) modelInputMob.value = 'claude-3-5-sonnet-20241022';
+              if (baseInputMob) baseInputMob.placeholder = 'https://api.anthropic.com';
+            } else {
+              if (modelInputMob) modelInputMob.value = 'gpt-4o-mini';
+              if (baseInputMob) baseInputMob.placeholder = 'https://api.openai.com/v1';
+            }
+          });
+        }
+
+        // Send triggers
+        const sendBtn = document.getElementById('btn-ai-send');
+        const chatInput = document.getElementById('ai-chat-input');
+        if (sendBtn && chatInput) {
+          sendBtn.addEventListener('click', () => {
+            sendAiMessage(chatInput.value);
+          });
+          chatInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              sendAiMessage(chatInput.value);
+            }
+          });
+        }
+
+        const sendBtnMob = document.getElementById('btn-ai-send-mobile');
+        const chatInputMob = document.getElementById('ai-chat-input-mobile');
+        if (sendBtnMob && chatInputMob) {
+          sendBtnMob.addEventListener('click', () => {
+            sendAiMessage(chatInputMob.value);
+          });
+          chatInputMob.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              sendAiMessage(chatInputMob.value);
+            }
+          });
+        }
+      }
+
+      // Start the application with dual server-first loading and local fallbacks
+      async function startApp() {
+        loadAllCustomFonts();
+        
+        // Center view initially centered in viewport
+        resetViewToCenter();
+
+        // Bind layout events
+        setupEventListeners();
+        setupMobileTabs();
+        setupAiEventListeners();
+
+        // Show loading status in the top bar indicator
+        const indicator = document.getElementById('save-indicator');
+        if (indicator) {
+          indicator.innerHTML = `
+            <span class="inline-flex items-center text-[10px] font-mono text-textSec animate-pulse">
+              <span class="w-1.5 h-1.5 rounded-full bg-textSec mr-1.5"></span>
+              Menghubungkan...
+            </span>
+          `;
+        }
+
+        let loadedFromServer = false;
+
+        try {
+          const response = await fetch('/api/load-project');
+          if (response.ok) {
+            const result = await response.json();
+            if (result.success && result.data) {
+              const { shapes: s, shapeCounter: sc, aiMessages: am, aiSettings: as } = result.data;
+              if (s && s.length > 0) {
+                shapes = s;
+                shapeCounter = sc || { rectangle: 0, circle: 0, text: 0 };
+                aiMessages = am || aiMessages;
+                aiSettings = as || aiSettings;
+                loadedFromServer = true;
+
+                if (indicator) {
+                  indicator.innerHTML = `
+                    <span class="inline-flex items-center text-[10px] font-mono text-emerald-400">
+                      <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5"></span>
+                      Sinkronisasi Cloud Aktif
+                    </span>
+                  `;
+                  setTimeout(() => {
+                    if (indicator && indicator.innerText.includes('Cloud Aktif')) {
+                      indicator.innerHTML = '';
+                    }
+                  }, 3500);
+                }
+              }
+            }
+          }
+        } catch (e) {
+          console.warn("Server connection failed or project not saved yet, falling back to local storage:", e);
+        }
+
+        // Fallback to local storage if server has no save data
+        if (!loadedFromServer) {
+          const saved = localStorage.getItem('graps_designer_shapes_v1');
+          const savedCounter = localStorage.getItem('graps_designer_counter_v1');
+          
+          if (saved) {
+            try {
+              shapes = JSON.parse(saved);
+              if (savedCounter) shapeCounter = JSON.parse(savedCounter);
+            } catch (e) {
+              loadDefaultShapes();
+            }
+          } else {
+            loadDefaultShapes();
+          }
+
+          // Load local AI state
+          loadAiState();
+
+          if (indicator) {
+            indicator.innerHTML = `
+              <span class="inline-flex items-center text-[10px] font-mono text-amber-500/80" title="Gagal tersambung ke database cloud server. Menggunakan database lokal browser Anda.">
+                <span class="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5"></span>
+                Penyimpanan Lokal Aktif
+              </span>
+            `;
+            setTimeout(() => {
+              if (indicator && indicator.innerText.includes('Penyimpanan Lokal')) {
+                indicator.innerHTML = '';
+              }
+            }, 3500);
+          }
+        } else {
+          // Sync local storage so it remains in sync with the server
+          localStorage.setItem('graps_designer_shapes_v1', JSON.stringify(shapes));
+          localStorage.setItem('graps_designer_counter_v1', JSON.stringify(shapeCounter));
+          localStorage.setItem('graps_ai_settings_v1', JSON.stringify(aiSettings));
+          localStorage.setItem('graps_ai_messages_v1', JSON.stringify(aiMessages));
+          
+          // Populate settings inputs
+          populateAiSettingsInputs();
+        }
+
+        // Render everything
+        render();
+        renderAiMessages();
+        renderLayersList();
+        updatePropertiesPanel();
+      }
+      
+      startApp();
+    </script>
+  </body>
+</html>

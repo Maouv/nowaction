@@ -1,0 +1,6 @@
+{
+  "name": "Mobile-First Minimal Design Tool",
+  "description": "A high-precision, touch-optimized UI layout spec design tool built specifically for mobile devices.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
