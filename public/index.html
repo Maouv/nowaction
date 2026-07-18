@@ -635,6 +635,7 @@
 
       // Dual-persistence state saver (Local Browser + Server File Database)
       let saveTimeout = null;
+      let pendingSaveData = null; // holds the latest payload not yet confirmed saved to the server
       async function saveProjectState() {
         // 1. Instantly save to local browser storage
         localStorage.setItem('graps_designer_shapes_v1', JSON.stringify(shapes));
@@ -654,6 +655,16 @@
           `;
         }
 
+        const payload = { shapes, shapeCounter, groups, aiMessages, aiSettings };
+        // Keep track of the latest not-yet-confirmed-saved payload so it can
+        // be force-flushed to the server if the page unloads (refresh/close)
+        // before the debounce timer below fires. Without this, a quick
+        // refresh right after an action (e.g. AI adding a shape) can lose
+        // that change: localStorage saves instantly, but the server file
+        // only gets written after the debounce delay, and on reload the
+        // (now-stale) server copy overwrites localStorage too.
+        pendingSaveData = payload;
+
         // Debounce server autosave to prevent spamming HTTP requests on rapid actions (e.g. dragging)
         if (saveTimeout) clearTimeout(saveTimeout);
         saveTimeout = setTimeout(async () => {
@@ -663,15 +674,10 @@
               headers: {
                 'Content-Type': 'application/json'
               },
-              body: JSON.stringify({
-                shapes,
-                shapeCounter,
-                groups,
-                aiMessages,
-                aiSettings
-              })
+              body: JSON.stringify(payload)
             });
             if (response.ok) {
+              pendingSaveData = null;
               if (indicator) {
                 indicator.innerHTML = `
                   <span class="inline-flex items-center text-[10px] font-mono text-emerald-400/80">
@@ -701,6 +707,27 @@
           }
         }, 1000);
       }
+
+      // Force-send any not-yet-confirmed save to the server the moment the
+      // page is about to be hidden/closed/refreshed. sendBeacon is used
+      // instead of fetch because in-flight fetch requests can get cancelled
+      // when the page unloads, while sendBeacon is designed by the browser
+      // specifically to survive that.
+      function flushPendingSaveOnUnload() {
+        if (!pendingSaveData) return;
+        try {
+          const blob = new Blob([JSON.stringify(pendingSaveData)], { type: 'application/json' });
+          navigator.sendBeacon('/api/save-project', blob);
+        } catch (e) {
+          // Best effort only — nothing more can be done once the page is unloading.
+        }
+        pendingSaveData = null;
+      }
+      window.addEventListener('pagehide', flushPendingSaveOnUnload);
+      window.addEventListener('beforeunload', flushPendingSaveOnUnload);
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') flushPendingSaveOnUnload();
+      });
 
       function saveToLocalStorage() {
         saveProjectState();
