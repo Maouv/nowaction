@@ -519,6 +519,7 @@
       const activePointers = new Map();
       let dragMode = null; // 'pan' | 'drag' | 'resize' | 'zoom'
       let dragShapeId = null;
+      const dragGroupStartPositions = new Map(); // sid -> {x, y} snapshot for group-aware drag
       let startPanX = 0, startPanY = 0;
       let startShapeX = 0, startShapeY = 0;
       let startShapeW = 0, startShapeH = 0;
@@ -1711,6 +1712,14 @@
                 dragShapeId = shapeId;
                 startShapeX = shape.x;
                 startShapeY = shape.y;
+
+                // Snapshot starting position of EVERY selected shape (group-aware drag).
+                // selectedShapeIds was just synced to the full group by selectShape() above.
+                dragGroupStartPositions.clear();
+                selectedShapeIds.forEach(sid => {
+                  const s = shapes.find(sh => sh.id === sid);
+                  if (s) dragGroupStartPositions.set(sid, { x: s.x, y: s.y });
+                });
               }
               return;
             }
@@ -1781,15 +1790,24 @@
           return;
         }
 
-        // Drag Shape
+        // Drag Shape (and every other shape in the same selection/group)
         if (dragMode === 'drag' && dragShapeId && activePointers.size === 1) {
-          const shape = shapes.find(s => s.id === dragShapeId);
-          if (shape && !shape.locked) {
-            const dx = clientX - startPointerX;
-            const dy = clientY - startPointerY;
-            // Translate client movement vector to world scale
-            shape.x = Math.round(startShapeX + dx / scale);
-            shape.y = Math.round(startShapeY + dy / scale);
+          const dx = clientX - startPointerX;
+          const dy = clientY - startPointerY;
+          const worldDx = dx / scale;
+          const worldDy = dy / scale;
+
+          let moved = false;
+          dragGroupStartPositions.forEach((startPos, sid) => {
+            const s = shapes.find(sh => sh.id === sid);
+            if (s && !s.locked) {
+              s.x = Math.round(startPos.x + worldDx);
+              s.y = Math.round(startPos.y + worldDy);
+              moved = true;
+            }
+          });
+
+          if (moved) {
             render();
             updatePropertiesPanel();
           }
@@ -1835,6 +1853,7 @@
           }
           dragMode = null;
           dragShapeId = null;
+          dragGroupStartPositions.clear();
           saveToLocalStorage();
         } else if (activePointers.size === 1 && dragMode === 'zoom') {
           // Seamless transition back to pan mode if one touch is released
