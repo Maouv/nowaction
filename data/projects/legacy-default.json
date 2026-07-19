@@ -1,0 +1,75 @@
+{
+  "id": "legacy-default",
+  "name": "My First Project",
+  "createdAt": "2026-07-18T08:39:55.527Z",
+  "updatedAt": "2026-07-19T00:22:09.557Z",
+  "shapes": [
+    {
+      "id": "sh_1784361333799_knf7",
+      "type": "rectangle",
+      "name": "Rectangle 3",
+      "fill": "#3b82f6",
+      "strokeWidth": 0,
+      "strokeColor": "#262626",
+      "borderRadius": 0,
+      "blur": 0,
+      "opacity": 100,
+      "locked": false,
+      "w": 113,
+      "h": 70,
+      "x": 62,
+      "y": 129
+    },
+    {
+      "id": "sh_1784361344980_1kc0",
+      "type": "circle",
+      "name": "Circle 2",
+      "fill": "#3b82f6",
+      "strokeWidth": 0,
+      "strokeColor": "#262626",
+      "borderRadius": 0,
+      "blur": 0,
+      "opacity": 100,
+      "locked": false,
+      "w": 109,
+      "h": 109,
+      "x": -96,
+      "y": 87,
+      "groupId": "group_1784363880144_0vb3"
+    },
+    {
+      "id": "sh_1784363877176_sk4k",
+      "type": "circle",
+      "name": "Circle 2",
+      "fill": "#3b82f6",
+      "strokeWidth": 0,
+      "strokeColor": "#262626",
+      "borderRadius": 0,
+      "blur": 0,
+      "opacity": 100,
+      "locked": false,
+      "w": 109,
+      "h": 109,
+      "x": 30,
+      "y": -126,
+      "groupId": "group_1784363880144_0vb3"
+    }
+  ],
+  "shapeCounter": {
+    "rectangle": 4,
+    "circle": 2,
+    "text": 2
+  },
+  "groups": {
+    "group_1784363880144_0vb3": {
+      "name": "Group 1"
+    }
+  },
+  "aiSettings": {
+    "provider": "gemini",
+    "apiKey": "",
+    "baseUrl": "",
+    "model": ""
+  },
+  "activeSessionId": "3ffa7ce3-def5-4029-98f4-f4dfc76d7cef"
+}

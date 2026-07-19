@@ -1,0 +1,16 @@
+{
+  "id": "66c76d02-333e-492c-81dd-3dd7194e0ad0",
+  "name": "nah",
+  "createdAt": "2026-07-19T00:22:15.055Z",
+  "updatedAt": "2026-07-19T00:22:23.901Z",
+  "shapes": [],
+  "shapeCounter": {
+    "rectangle": 0,
+    "circle": 0,
+    "text": 0,
+    "image": 0
+  },
+  "groups": {},
+  "aiSettings": {},
+  "activeSessionId": null
+}

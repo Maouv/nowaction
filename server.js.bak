@@ -181,15 +181,7 @@ async function migrateLegacyProjectIfNeeded() {
   console.log(`[migration] Done. Project "${projectId}" with session "${sessionId}" created. Legacy file renamed to project_data.json.migrated.`);
 }
 
-// ===== LEGACY SHIM (Phase 1) — kept for back-compat/manual testing only =====
-// As of Phase 2, the frontend calls the new project/session endpoints
-// directly (GET/PUT /api/projects/:id, PUT /api/projects/:id/sessions/:id)
-// and no longer goes through these two routes at all. They still work — if
-// legacyMigrationDone, they transparently route to the legacy-default
-// project/session, same as before — but they are NOT in the UI's critical
-// path anymore. Do not assume the frontend depends on these.
-
-// API route to SAVE project (shapes + chats) server-side — LEGACY, see note above
+// API route to SAVE project (shapes + chats) server-side
 app.post('/api/save-project', async (req, res) => {
   try {
     const { shapes, shapeCounter, groups, aiMessages, aiSettings } = req.body;
@@ -264,7 +256,7 @@ app.post('/api/save-project', async (req, res) => {
   }
 });
 
-// API route to LOAD project server-side — LEGACY, see note above app.post('/api/save-project')
+// API route to LOAD project server-side
 app.get('/api/load-project', async (req, res) => {
   try {
     if (legacyMigrationDone) {
@@ -311,47 +303,6 @@ app.get('/api/load-project', async (req, res) => {
 });
 
 /* ===== Project endpoints (Phase 1) ===== */
-
-/* POST /api/projects/:projectId/beacon-save — POST-only variant of the
-   PUT project/session save, used exclusively by navigator.sendBeacon() on
-   page unload (sendBeacon can only send POST, never PUT). Body:
-   { shapes, shapeCounter, groups, aiSettings, sessionId?, messages? }.
-   Best-effort: the browser doesn't read the response, so this just needs
-   to not throw. */
-app.post('/api/projects/:projectId/beacon-save', async (req, res) => {
-  try {
-    const { projectId } = req.params;
-    const existing = await readJson(projectFilePath(projectId), null);
-    if (!existing) return res.status(404).json({ error: 'Project not found.' });
-
-    const { shapes, shapeCounter, groups, aiSettings, sessionId, messages } = req.body;
-    const now = new Date().toISOString();
-
-    const updated = {
-      ...existing,
-      shapes: shapes !== undefined ? shapes : existing.shapes,
-      shapeCounter: shapeCounter !== undefined ? shapeCounter : existing.shapeCounter,
-      groups: groups !== undefined ? groups : existing.groups,
-      aiSettings: aiSettings !== undefined ? aiSettings : existing.aiSettings,
-      updatedAt: now
-    };
-    await writeJson(projectFilePath(projectId), updated);
-    await upsertProjectsIndexEntry({ id: projectId, name: updated.name, updatedAt: now });
-
-    if (sessionId && messages !== undefined) {
-      const existingSession = await readJson(sessionFilePath(projectId, sessionId), null);
-      if (existingSession) {
-        await writeJson(sessionFilePath(projectId, sessionId), { ...existingSession, messages, updatedAt: now });
-        await upsertSessionsIndexEntry(projectId, { id: sessionId, name: existingSession.name, updatedAt: now });
-      }
-    }
-
-    res.json({ success: true });
-  } catch (error) {
-    console.error('Beacon Save Error:', error);
-    res.status(500).json({ error: error.message || 'Failed beacon save.' });
-  }
-});
 
 /* POST /api/projects — create a new project */
 app.post('/api/projects', async (req, res) => {

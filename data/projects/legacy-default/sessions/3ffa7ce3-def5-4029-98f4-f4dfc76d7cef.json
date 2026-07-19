@@ -1,0 +1,13 @@
+{
+  "id": "3ffa7ce3-def5-4029-98f4-f4dfc76d7cef",
+  "projectId": "legacy-default",
+  "name": "Session 1",
+  "createdAt": "2026-07-18T08:39:55.527Z",
+  "updatedAt": "2026-07-19T00:22:09.599Z",
+  "messages": [
+    {
+      "role": "assistant",
+      "content": "Hello! I am your NOWACTION design AI assistant. I can help you create layouts, write text content, or provide design suggestions!\n\nBy default, I use Google Gemini (free with your server API key, no key input required!). However, you can change the model/provider in the ⚙️ settings menu."
+    }
+  ]
+}
