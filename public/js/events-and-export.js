@@ -211,14 +211,17 @@
           const rotateStyle = `rotate(${shape.rotation || 0}deg)`;
 
           const hasAnim = shape.animation && shape.animation.enabled &&
-            Object.values(shape.animation.tracks || {}).some(t => t && t.length > 0);
+            ((shape.animation.keyframes && shape.animation.keyframes.length > 0) ||
+             Object.values(shape.animation.tracks || {}).some(t => t && t.length > 0));
           const animAttr = hasAnim ? ` data-anim-id="${shape.id}"` : '';
           if (hasAnim) {
+            // Always export as unified keyframes; migrate old tracks on the fly if needed
             animManifest.push({
               id: shape.id,
               mode: shape.animation.mode,
               trigger: shape.animation.trigger,
-              tracks: shape.animation.tracks
+              keyframes: shape.animation.keyframes
+                || window.ScrollAnim.migrateTracksToKeyframes(shape.animation.tracks || {})
             });
           }
           
@@ -309,7 +312,8 @@ ${fragment}
 
         // Only fetch the runtime once, and only if at least one shape needs it.
         const anyAnimated = shapes.some(s => s.animation && s.animation.enabled &&
-          Object.values(s.animation.tracks || {}).some(t => t && t.length > 0));
+          ((s.animation.keyframes && s.animation.keyframes.length > 0) ||
+           Object.values(s.animation.tracks || {}).some(t => t && t.length > 0)));
         const runtimeSrc = anyAnimated ? await getScrollAnimRuntimeSource() : null;
         if (runtimeSrc) {
           zip.file('js/scroll-anim-runtime.js', runtimeSrc);
@@ -323,7 +327,8 @@ ${fragment}
           const rotateStyle = `rotate(${shape.rotation || 0}deg)`;
 
           const hasAnim = shape.animation && shape.animation.enabled &&
-            Object.values(shape.animation.tracks || {}).some(t => t && t.length > 0);
+            ((shape.animation.keyframes && shape.animation.keyframes.length > 0) ||
+             Object.values(shape.animation.tracks || {}).some(t => t && t.length > 0));
           const animAttr = hasAnim ? ` data-anim-id="${shape.id}"` : '';
           
           let compHtml = '';
@@ -350,7 +355,8 @@ ${fragment}
               id: shape.id,
               mode: shape.animation.mode,
               trigger: shape.animation.trigger,
-              tracks: shape.animation.tracks
+              keyframes: shape.animation.keyframes
+                || window.ScrollAnim.migrateTracksToKeyframes(shape.animation.tracks || {})
             }];
             compHtml += `\n<!-- Requires js/scroll-anim-runtime.js (included in this zip) -->\n`;
             compHtml += `<script src="../js/scroll-anim-runtime.js"><\/script>\n`;
@@ -377,5 +383,6 @@ ${fragment}
           alert('Failed to generate ZIP file.');
         });
       }
+
 
 

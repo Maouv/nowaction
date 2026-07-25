@@ -3,6 +3,24 @@
    loaded in the same order they appear in index.html. Do not reorder the <script> tags. */
 
       let shapes = [];
+
+      // Migrate any shape with old per-prop tracks to unified keyframes format.
+      // Safe to call repeatedly — shapes already on new format are left untouched.
+      function migrateShapesAnimFormat(shapeList) {
+        (shapeList || []).forEach(function(shape) {
+          if (!shape.animation) return;
+          if (shape.animation.keyframes) return; // already new format
+          if (shape.animation.tracks) {
+            shape.animation.keyframes =
+              window.ScrollAnim.migrateTracksToKeyframes(shape.animation.tracks);
+            delete shape.animation.tracks;
+          } else {
+            shape.animation.keyframes = [];
+          }
+        });
+      }
+
+
       let selectedShapeId = null;
       let selectedShapeIds = new Set();
       let clipboardShapes = [];
@@ -489,6 +507,7 @@
           currentProjectId = project.id;
           currentActiveSessionId = project.activeSessionId || null;
           shapes = project.shapes || [];
+          migrateShapesAnimFormat(shapes);
           shapeCounter = project.shapeCounter || { ...DEFAULT_SHAPE_COUNTER };
           groups = project.groups || {};
           aiSettings = project.aiSettings || { provider: 'gemini', apiKey: '', baseUrl: '', model: '' };
@@ -547,6 +566,7 @@
             const data = JSON.parse(e.target.result);
             if (data.shapes && Array.isArray(data.shapes)) {
               shapes = data.shapes;
+              migrateShapesAnimFormat(shapes);
               shapeCounter = data.shapeCounter || { rectangle: shapes.filter(x => x.type === 'rectangle').length, circle: shapes.filter(x => x.type === 'circle').length, text: shapes.filter(x => x.type === 'text').length };
               groups = data.groups || {};
               aiMessages = data.aiMessages || aiMessages;
@@ -569,5 +589,6 @@
         };
         reader.readAsText(file);
       };
+
 
 

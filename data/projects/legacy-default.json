@@ -2,69 +2,131 @@
   "id": "legacy-default",
   "name": "My First Project",
   "createdAt": "2026-07-18T08:39:55.527Z",
-  "updatedAt": "2026-07-19T00:22:09.557Z",
+  "updatedAt": "2026-07-25T02:54:08.955Z",
   "shapes": [
     {
-      "id": "sh_1784361333799_knf7",
+      "id": "sh_1784945372347_mcca",
       "type": "rectangle",
-      "name": "Rectangle 3",
+      "name": "Rectangle 6",
       "fill": "#3b82f6",
       "strokeWidth": 0,
       "strokeColor": "#262626",
       "borderRadius": 0,
       "blur": 0,
       "opacity": 100,
+      "rotation": 0,
       "locked": false,
-      "w": 113,
-      "h": 70,
-      "x": 62,
-      "y": 129
+      "w": 120,
+      "h": 80,
+      "x": 103,
+      "y": -348,
+      "animation": {
+        "enabled": false,
+        "mode": "element",
+        "trigger": {
+          "startVH": 100,
+          "endVH": 0
+        },
+        "keyframes": [
+          {
+            "p": 0,
+            "ease": "linear",
+            "x": 27,
+            "y": -35,
+            "w": 120,
+            "h": 80,
+            "opacity": 100,
+            "rotation": 0,
+            "blur": 0
+          },
+          {
+            "p": 13,
+            "ease": "linear",
+            "x": 27,
+            "y": -35,
+            "w": 120,
+            "h": 80,
+            "opacity": 100,
+            "rotation": 0,
+            "blur": 0
+          },
+          {
+            "p": 100,
+            "ease": "ease",
+            "x": 27,
+            "y": -35,
+            "w": 120,
+            "h": 80,
+            "opacity": 100,
+            "rotation": 0,
+            "blur": 0
+          }
+        ]
+      }
     },
     {
-      "id": "sh_1784361344980_1kc0",
-      "type": "circle",
-      "name": "Circle 2",
+      "id": "sh_1784947904079_43ih",
+      "type": "rectangle",
+      "name": "Rectangle 7",
       "fill": "#3b82f6",
       "strokeWidth": 0,
       "strokeColor": "#262626",
       "borderRadius": 0,
       "blur": 0,
       "opacity": 100,
+      "rotation": 0,
       "locked": false,
-      "w": 109,
-      "h": 109,
-      "x": -96,
-      "y": 87,
-      "groupId": "group_1784363880144_0vb3"
-    },
-    {
-      "id": "sh_1784363877176_sk4k",
-      "type": "circle",
-      "name": "Circle 2",
-      "fill": "#3b82f6",
-      "strokeWidth": 0,
-      "strokeColor": "#262626",
-      "borderRadius": 0,
-      "blur": 0,
-      "opacity": 100,
-      "locked": false,
-      "w": 109,
-      "h": 109,
-      "x": 30,
-      "y": -126,
-      "groupId": "group_1784363880144_0vb3"
+      "w": 172,
+      "h": 139,
+      "x": -25,
+      "y": 2,
+      "animation": {
+        "enabled": false,
+        "mode": "element",
+        "trigger": {
+          "startVH": 100,
+          "endVH": 0
+        },
+        "rangeStart": 0,
+        "rangeEnd": 100,
+        "keyframes": [
+          {
+            "p": 10,
+            "ease": "linear",
+            "x": -25,
+            "y": 2,
+            "w": 120,
+            "h": 80,
+            "opacity": 100,
+            "rotation": 0,
+            "blur": 0
+          },
+          {
+            "p": 30,
+            "ease": [
+              0.42,
+              0,
+              0.58,
+              1
+            ],
+            "x": -25,
+            "y": 2,
+            "w": 120,
+            "h": 800,
+            "opacity": 100,
+            "blur": 0,
+            "rotation": 0
+          }
+        ]
+      }
     }
   ],
   "shapeCounter": {
-    "rectangle": 4,
+    "rectangle": 7,
     "circle": 2,
     "text": 2
   },
-  "groups": {
-    "group_1784363880144_0vb3": {
-      "name": "Group 1"
-    }
-  },
+  "groups": {},
   "aiSettings": {
     "provider": "gemini",
     "apiKey": "",
