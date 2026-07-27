@@ -50,6 +50,12 @@
     playing: false
   };
 
+  // Persisted across close so render() can re-apply the preview even after
+  // the timeline drawer is hidden. Without this, render() rebuilding
+  // canvasWorld.innerHTML wipes the inline transform and the shape snaps
+  // back to its base position — losing the visual keyframe state.
+  window._animPreview = { shapeId: null, scrub: 0 };
+
   // dragCtx types:
   //   { type: 'keyframe', index, keyframe, containerEl, dotEl }
   //   { type: 'range-start' | 'range-end', containerEl }
@@ -103,6 +109,7 @@
     state.shapeId       = id;
     state.selectedIndex = null;
     state.scrub         = 0;
+    window._animPreview  = { shapeId: id, scrub: 0 };
     renderDrawer();
     document.getElementById('anim-timeline-drawer').classList.remove('hidden');
   };
@@ -110,7 +117,9 @@
   window.closeAnimationTimeline = function () {
     state.open = false;
     stopPreview();
-    resetPreviewStyles();
+    // Don't reset preview styles — keep the shape at its last scrub position
+    // so the user sees their keyframe work after closing the drawer.
+    // render() will re-apply the preview via reapplyPreview() using _animPreview.
     var drawer = document.getElementById('anim-timeline-drawer');
     if (drawer) drawer.classList.add('hidden');
   };
@@ -409,6 +418,10 @@
 
   // ── Preview / scrub ────────────────────────────────────────────────────────
   function applyScrubPreview() {
+    // Sync persisted preview state so render() can re-apply after innerHTML rebuild
+    window._animPreview.shapeId = state.shapeId;
+    window._animPreview.scrub   = state.scrub;
+
     var shape = getShape();
     if (!shape) return;
     var el = document.querySelector('[data-id="' + shape.id + '"]');
@@ -726,6 +739,31 @@
         else { stopPreview(); }
       }
       playRAF = requestAnimationFrame(step);
+    },
+
+    // Called by render() after rebuilding canvasWorld.innerHTML.
+    // Re-applies the scroll-anim preview transform so it survives DOM rebuilds
+    // (canvas click, drag, layer toggle, etc.). Without this, the inline
+    // transform is wiped and the shape snaps back to its base position.
+    reapplyPreview: function () {
+      var p = window._animPreview;
+      if (!p || !p.shapeId) return;
+      var shape = shapes.find(function (s) { return s.id === p.shapeId; });
+      if (!shape || !shape.animation) return;
+      var anim = shape.animation;
+      if (!anim.keyframes || !anim.keyframes.length) return;
+      var el = document.querySelector('[data-id="' + shape.id + '"]');
+      if (!el) return;
+      var rs = anim.rangeStart !== undefined ? anim.rangeStart : 0;
+      var re = anim.rangeEnd   !== undefined ? anim.rangeEnd   : 100;
+      if (p.scrub < rs || p.scrub > re) {
+        el.style.display = 'none';
+        return;
+      }
+      el.style.display = '';
+      var localProgress = globalToLocal(p.scrub, rs, re);
+      window.ScrollAnim.applyToElement(el, anim, localProgress);
+      if (state.open) updateLiveSidebarInputs();
     }
   };
 

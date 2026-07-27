@@ -19,7 +19,7 @@
         `;
 
         // ── ARTBOARD FRAME (Step 3) ──────────────────────────────────────
-        const cfg = window.canvasConfig;
+        const cfg = canvasConfig;
         if (cfg && cfg.preset !== 'infinite') {
           const fw = cfg.width  || 1920;
           const fh = cfg.height || 1080;
@@ -181,6 +181,14 @@
 
         // Render Layer lists
         renderLayersList();
+
+        // Re-apply scroll-anim timeline preview after innerHTML rebuild.
+        // render() destroys the DOM element + inline transform, which would
+        // snap the shape back to base position. Skip during active drag so
+        // the shape follows the pointer instead of the keyframe preview.
+        if (!dragMode && window.ScrollAnimUI && window.ScrollAnimUI.reapplyPreview) {
+          window.ScrollAnimUI.reapplyPreview();
+        }
       }
 
       // SVG icon based on shape type, used by the layer-tree rows
@@ -350,31 +358,31 @@
                   <div>
                     <label class="text-[9px] font-mono text-textSec uppercase tracking-wider block mb-1">Canvas Size</label>
                     <select onchange="updateCanvasConfig('preset', this.value)" class="bg-[#0a0a0a] border border-border text-text font-mono text-[10px] rounded px-2 py-1.5 focus:outline-none focus:border-accent w-full mb-2">
-                      <option value="1920x1080" ${window.canvasConfig.preset === '1920x1080' ? 'selected' : ''}>Desktop (1920 x 1080)</option>
-                      <option value="1080x1920" ${window.canvasConfig.preset === '1080x1920' ? 'selected' : ''}>Mobile (1080 x 1920)</option>
-                      <option value="1080x1080" ${window.canvasConfig.preset === '1080x1080' ? 'selected' : ''}>Square (1080 x 1080)</option>
-                      <option value="custom" ${window.canvasConfig.preset === 'custom' ? 'selected' : ''}>Custom PX...</option>
-                      <option value="infinite" ${window.canvasConfig.preset === 'infinite' ? 'selected' : ''}>Infinite (No Frame)</option>
+                      <option value="1920x1080" ${canvasConfig.preset === '1920x1080' ? 'selected' : ''}>Desktop (1920 x 1080)</option>
+                      <option value="1080x1920" ${canvasConfig.preset === '1080x1920' ? 'selected' : ''}>Mobile (1080 x 1920)</option>
+                      <option value="1080x1080" ${canvasConfig.preset === '1080x1080' ? 'selected' : ''}>Square (1080 x 1080)</option>
+                      <option value="custom" ${canvasConfig.preset === 'custom' ? 'selected' : ''}>Custom PX...</option>
+                      <option value="infinite" ${canvasConfig.preset === 'infinite' ? 'selected' : ''}>Infinite (No Frame)</option>
                     </select>
-                    ${window.canvasConfig.preset !== 'infinite' ? `
+                    ${canvasConfig.preset !== 'infinite' ? `
                     <div class="grid grid-cols-2 gap-2">
                       <div>
                         <label class="text-[8px] font-mono text-textSec uppercase tracking-wider block mb-0.5">Width</label>
-                        <input type="text" value="${window.canvasConfig.width}" onchange="updateCanvasConfig('width', this.value)" ${window.canvasConfig.preset !== 'custom' ? 'disabled' : ''} class="bg-[#0a0a0a] disabled:opacity-50 border border-border text-text font-mono text-xs rounded px-2.5 py-1.5 focus:outline-none focus:border-accent w-full" />
+                        <input type="text" value="${canvasConfig.width}" onchange="updateCanvasConfig('width', this.value)" ${canvasConfig.preset !== 'custom' ? 'disabled' : ''} class="bg-[#0a0a0a] disabled:opacity-50 border border-border text-text font-mono text-xs rounded px-2.5 py-1.5 focus:outline-none focus:border-accent w-full" />
                       </div>
                       <div>
                         <label class="text-[8px] font-mono text-textSec uppercase tracking-wider block mb-0.5">Height</label>
-                        <input type="text" value="${window.canvasConfig.height}" onchange="updateCanvasConfig('height', this.value)" ${window.canvasConfig.preset !== 'custom' ? 'disabled' : ''} class="bg-[#0a0a0a] disabled:opacity-50 border border-border text-text font-mono text-xs rounded px-2.5 py-1.5 focus:outline-none focus:border-accent w-full" />
+                        <input type="text" value="${canvasConfig.height}" onchange="updateCanvasConfig('height', this.value)" ${canvasConfig.preset !== 'custom' ? 'disabled' : ''} class="bg-[#0a0a0a] disabled:opacity-50 border border-border text-text font-mono text-xs rounded px-2.5 py-1.5 focus:outline-none focus:border-accent w-full" />
                       </div>
                     </div>` : ''}
                   </div>
                   <div>
                     <label class="text-[9px] font-mono text-textSec uppercase tracking-wider block mb-1">Pixel Grid Snap</label>
                     <select onchange="updateCanvasConfig('gridSnap', parseInt(this.value))" class="bg-[#0a0a0a] border border-border text-text font-mono text-[10px] rounded px-2 py-1.5 focus:outline-none focus:border-accent w-full">
-                      <option value="1" ${window.canvasConfig.gridSnap === 1 ? 'selected' : ''}>Off (1px Precision)</option>
-                      <option value="8" ${window.canvasConfig.gridSnap === 8 ? 'selected' : ''}>8px Grid</option>
-                      <option value="10" ${window.canvasConfig.gridSnap === 10 ? 'selected' : ''}>10px Grid</option>
-                      <option value="16" ${window.canvasConfig.gridSnap === 16 ? 'selected' : ''}>16px Grid</option>
+                      <option value="1" ${canvasConfig.gridSnap === 1 ? 'selected' : ''}>Off (1px Precision)</option>
+                      <option value="8" ${canvasConfig.gridSnap === 8 ? 'selected' : ''}>8px Grid</option>
+                      <option value="10" ${canvasConfig.gridSnap === 10 ? 'selected' : ''}>10px Grid</option>
+                      <option value="16" ${canvasConfig.gridSnap === 16 ? 'selected' : ''}>16px Grid</option>
                     </select>
                   </div>
                 </div>
