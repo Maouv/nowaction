@@ -309,11 +309,43 @@
         
         if (!selectedShapeId) {
           const fallbackHtml = `
-            <div class="flex flex-col items-center justify-center py-12 text-center space-y-2">
-              <svg class="w-8 h-8 text-textSec/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
-              </svg>
-              <p class="text-xs text-textSec font-mono">No element selected</p>
+            <div class="space-y-4">
+              <!-- Canvas Settings -->
+              <div class="space-y-3 border-b border-border/50 pb-4">
+                <span class="text-[10px] font-mono font-bold text-textSec uppercase tracking-wider">Canvas & Grid</span>
+                <div class="space-y-2">
+                  <div>
+                    <label class="text-[9px] font-mono text-textSec uppercase tracking-wider block mb-1">Canvas Size</label>
+                    <select onchange="updateCanvasConfig('preset', this.value)" class="bg-[#0a0a0a] border border-border text-text font-mono text-[10px] rounded px-2 py-1.5 focus:outline-none focus:border-accent w-full mb-2">
+                      <option value="1920x1080" ${window.canvasConfig.preset === '1920x1080' ? 'selected' : ''}>Desktop (1920 x 1080)</option>
+                      <option value="1080x1920" ${window.canvasConfig.preset === '1080x1920' ? 'selected' : ''}>Mobile (1080 x 1920)</option>
+                      <option value="1080x1080" ${window.canvasConfig.preset === '1080x1080' ? 'selected' : ''}>Square (1080 x 1080)</option>
+                      <option value="custom" ${window.canvasConfig.preset === 'custom' ? 'selected' : ''}>Custom PX...</option>
+                      <option value="infinite" ${window.canvasConfig.preset === 'infinite' ? 'selected' : ''}>Infinite (No Frame)</option>
+                    </select>
+                    ${window.canvasConfig.preset !== 'infinite' ? `
+                    <div class="grid grid-cols-2 gap-2">
+                      <div>
+                        <label class="text-[8px] font-mono text-textSec uppercase tracking-wider block mb-0.5">Width</label>
+                        <input type="text" value="${window.canvasConfig.width}" onchange="updateCanvasConfig('width', this.value)" ${window.canvasConfig.preset !== 'custom' ? 'disabled' : ''} class="bg-[#0a0a0a] disabled:opacity-50 border border-border text-text font-mono text-xs rounded px-2.5 py-1.5 focus:outline-none focus:border-accent w-full" />
+                      </div>
+                      <div>
+                        <label class="text-[8px] font-mono text-textSec uppercase tracking-wider block mb-0.5">Height</label>
+                        <input type="text" value="${window.canvasConfig.height}" onchange="updateCanvasConfig('height', this.value)" ${window.canvasConfig.preset !== 'custom' ? 'disabled' : ''} class="bg-[#0a0a0a] disabled:opacity-50 border border-border text-text font-mono text-xs rounded px-2.5 py-1.5 focus:outline-none focus:border-accent w-full" />
+                      </div>
+                    </div>` : ''}
+                  </div>
+                  <div>
+                    <label class="text-[9px] font-mono text-textSec uppercase tracking-wider block mb-1">Pixel Grid Snap</label>
+                    <select onchange="updateCanvasConfig('gridSnap', parseInt(this.value))" class="bg-[#0a0a0a] border border-border text-text font-mono text-[10px] rounded px-2 py-1.5 focus:outline-none focus:border-accent w-full">
+                      <option value="1" ${window.canvasConfig.gridSnap === 1 ? 'selected' : ''}>Off (1px Precision)</option>
+                      <option value="8" ${window.canvasConfig.gridSnap === 8 ? 'selected' : ''}>8px Grid</option>
+                      <option value="10" ${window.canvasConfig.gridSnap === 10 ? 'selected' : ''}>10px Grid</option>
+                      <option value="16" ${window.canvasConfig.gridSnap === 16 ? 'selected' : ''}>16px Grid</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
             </div>
           `;
           desktopPanel.innerHTML = fallbackHtml;
@@ -321,9 +353,9 @@
           // Mobile counterpart fallback
           const mobilePanelContainer = document.getElementById('mobile-tab-properties');
           mobilePanelContainer.innerHTML = `
-            <div class="flex flex-col items-center justify-center h-full text-center space-y-1">
-              <span class="text-xs font-mono font-bold text-textSec uppercase tracking-wider mb-2">Properties</span>
-              <p class="text-[11px] text-textSec font-mono">Please select a layer or shape on the canvas</p>
+            <div class="flex flex-col h-full space-y-4">
+              <span class="text-xs font-mono font-bold text-textSec uppercase tracking-wider mb-2">Canvas Properties</span>
+              ${fallbackHtml}
             </div>
           `;
           return;
@@ -342,23 +374,23 @@
             <div class="grid grid-cols-2 gap-2">
               <div>
                 <label class="text-[9px] font-mono text-textSec uppercase tracking-wider block mb-1">X Pos</label>
-                <input type="number" value="${shape.x}" oninput="updateShapeVal('x', this.value)" class="bg-[#0a0a0a] border border-border text-text font-mono text-xs rounded px-2.5 py-1.5 focus:outline-none focus:border-accent w-full" />
+                <input type="text" data-shape-prop="x" value="${shape.x}" onchange="updateShapeVal('x', this.value)" class="bg-[#0a0a0a] border border-border text-text font-mono text-xs rounded px-2.5 py-1.5 focus:outline-none focus:border-accent w-full" />
               </div>
               <div>
                 <label class="text-[9px] font-mono text-textSec uppercase tracking-wider block mb-1">Y Pos</label>
-                <input type="number" value="${shape.y}" oninput="updateShapeVal('y', this.value)" class="bg-[#0a0a0a] border border-border text-text font-mono text-xs rounded px-2.5 py-1.5 focus:outline-none focus:border-accent w-full" />
+                <input type="text" data-shape-prop="y" value="${shape.y}" onchange="updateShapeVal('y', this.value)" class="bg-[#0a0a0a] border border-border text-text font-mono text-xs rounded px-2.5 py-1.5 focus:outline-none focus:border-accent w-full" />
               </div>
               <div>
                 <label class="text-[9px] font-mono text-textSec uppercase tracking-wider block mb-1">Width</label>
-                <input type="number" value="${shape.w}" oninput="updateShapeVal('w', this.value)" class="bg-[#0a0a0a] border border-border text-text font-mono text-xs rounded px-2.5 py-1.5 focus:outline-none focus:border-accent w-full" />
+                <input type="text" data-shape-prop="w" value="${shape.w}" onchange="updateShapeVal('w', this.value)" class="bg-[#0a0a0a] border border-border text-text font-mono text-xs rounded px-2.5 py-1.5 focus:outline-none focus:border-accent w-full" />
               </div>
               <div>
                 <label class="text-[9px] font-mono text-textSec uppercase tracking-wider block mb-1">Height</label>
-                <input type="number" value="${shape.h}" oninput="updateShapeVal('h', this.value)" class="bg-[#0a0a0a] border border-border text-text font-mono text-xs rounded px-2.5 py-1.5 focus:outline-none focus:border-accent w-full" />
+                <input type="text" data-shape-prop="h" value="${shape.h}" onchange="updateShapeVal('h', this.value)" class="bg-[#0a0a0a] border border-border text-text font-mono text-xs rounded px-2.5 py-1.5 focus:outline-none focus:border-accent w-full" />
               </div>
               <div>
                 <label class="text-[9px] font-mono text-textSec uppercase tracking-wider block mb-1">Rotation (deg)</label>
-                <input type="number" value="${shape.rotation || 0}" oninput="updateShapeVal('rotation', this.value)" class="bg-[#0a0a0a] border border-border text-text font-mono text-xs rounded px-2.5 py-1.5 focus:outline-none focus:border-accent w-full" />
+                <input type="text" data-shape-prop="rotation" value="${shape.rotation || 0}" onchange="updateShapeVal('rotation', this.value)" class="bg-[#0a0a0a] border border-border text-text font-mono text-xs rounded px-2.5 py-1.5 focus:outline-none focus:border-accent w-full" />
               </div>
             </div>
             <button onclick="openAnimationTimeline('${shape.id}')" class="w-full flex items-center justify-center space-x-1.5 px-2.5 py-1.5 bg-accent/15 hover:bg-accent/25 border border-accent/40 text-accent text-[10px] font-semibold rounded transition-colors">
@@ -387,16 +419,16 @@
               <div class="grid grid-cols-2 gap-2">
                 <div>
                   <label class="text-[9px] font-mono text-textSec uppercase tracking-wider block mb-1">Opacity (%)</label>
-                  <input type="number" min="0" max="100" value="${shape.opacity}" oninput="updateShapeVal('opacity', this.value)" class="bg-[#0a0a0a] border border-border text-text font-mono text-xs rounded px-2.5 py-1.5 focus:outline-none focus:border-accent w-full" />
+                  <input type="text" data-shape-prop="opacity" value="${shape.opacity}" onchange="updateShapeVal('opacity', this.value)" class="bg-[#0a0a0a] border border-border text-text font-mono text-xs rounded px-2.5 py-1.5 focus:outline-none focus:border-accent w-full" />
                 </div>
                 <div>
                   <label class="text-[9px] font-mono text-textSec uppercase tracking-wider block mb-1">Border Radius</label>
-                  <input type="number" value="${shape.borderRadius}" ${shape.type === 'circle' ? 'disabled placeholder="Circle"' : ''} oninput="updateShapeVal('borderRadius', this.value)" class="bg-[#0a0a0a] disabled:opacity-40 border border-border text-text font-mono text-xs rounded px-2.5 py-1.5 focus:outline-none focus:border-accent w-full" />
+                  <input type="text" value="${shape.borderRadius}" ${shape.type === 'circle' ? 'disabled placeholder="Circle"' : ''} onchange="updateShapeVal('borderRadius', this.value)" class="bg-[#0a0a0a] disabled:opacity-40 border border-border text-text font-mono text-xs rounded px-2.5 py-1.5 focus:outline-none focus:border-accent w-full" />
                 </div>
               </div>
               <div>
                 <label class="text-[9px] font-mono text-textSec uppercase tracking-wider block mb-1">Blur Filter (px)</label>
-                <input type="number" value="${shape.blur}" oninput="updateShapeVal('blur', this.value)" class="bg-[#0a0a0a] border border-border text-text font-mono text-xs rounded px-2.5 py-1.5 focus:outline-none focus:border-accent w-full" />
+                <input type="text" data-shape-prop="blur" value="${shape.blur}" onchange="updateShapeVal('blur', this.value)" class="bg-[#0a0a0a] border border-border text-text font-mono text-xs rounded px-2.5 py-1.5 focus:outline-none focus:border-accent w-full" />
               </div>
             </div>
           </div>
@@ -407,7 +439,7 @@
             <div class="grid grid-cols-2 gap-2">
               <div>
                 <label class="text-[9px] font-mono text-textSec uppercase tracking-wider block mb-1">Thickness</label>
-                <input type="number" value="${shape.strokeWidth}" oninput="updateShapeVal('strokeWidth', this.value)" class="bg-[#0a0a0a] border border-border text-text font-mono text-xs rounded px-2.5 py-1.5 focus:outline-none focus:border-accent w-full" />
+                <input type="text" value="${shape.strokeWidth}" onchange="updateShapeVal('strokeWidth', this.value)" class="bg-[#0a0a0a] border border-border text-text font-mono text-xs rounded px-2.5 py-1.5 focus:outline-none focus:border-accent w-full" />
               </div>
               <div>
                 <label class="text-[9px] font-mono text-textSec uppercase tracking-wider block mb-1">Stroke Color</label>
@@ -429,7 +461,7 @@
               <div class="grid grid-cols-2 gap-2">
                 <div>
                   <label class="text-[9px] font-mono text-textSec uppercase tracking-wider block mb-1">Font Size</label>
-                  <input type="number" value="${shape.fontSize}" oninput="updateShapeVal('fontSize', this.value)" class="bg-[#0a0a0a] border border-border text-text font-mono text-xs rounded px-2.5 py-1.5 focus:outline-none focus:border-accent w-full" />
+                  <input type="text" value="${shape.fontSize}" onchange="updateShapeVal('fontSize', this.value)" class="bg-[#0a0a0a] border border-border text-text font-mono text-xs rounded px-2.5 py-1.5 focus:outline-none focus:border-accent w-full" />
                 </div>
                 <div>
                   <label class="text-[9px] font-mono text-textSec uppercase tracking-wider block mb-1">Text Color</label>

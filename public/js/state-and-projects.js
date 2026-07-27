@@ -33,6 +33,7 @@
       let scale = 1.0;
       let shapeCounter = { rectangle: 0, circle: 0, text: 0, image: 0 };
       let groups = {}; // groupId -> { name }
+      let canvasConfig = { preset: 'custom', width: 1920, height: 1080, gridSnap: 1, showFrame: true };
 
       // Multi-project state (Phase 2)
       const DEFAULT_SHAPE_COUNTER = { rectangle: 0, circle: 0, text: 0, image: 0 };
@@ -257,6 +258,7 @@
         localStorage.setItem('graps_designer_groups_v1', JSON.stringify(groups));
         localStorage.setItem('graps_ai_settings_v1', JSON.stringify(aiSettings));
         localStorage.setItem('graps_ai_messages_v1', JSON.stringify(aiMessages));
+        localStorage.setItem('graps_canvas_config_v1', JSON.stringify(canvasConfig));
 
         // Update indicator text in header
         const indicator = document.getElementById('save-indicator');
@@ -269,7 +271,7 @@
           `;
         }
 
-        const payload = { shapes, shapeCounter, groups, aiSettings };
+        const payload = { shapes, shapeCounter, groups, aiSettings, canvasConfig };
         const messagesPayload = aiMessages;
 
         // Snapshot exactly which project/session this save is for, captured
@@ -511,6 +513,7 @@
           shapeCounter = project.shapeCounter || { ...DEFAULT_SHAPE_COUNTER };
           groups = project.groups || {};
           aiSettings = project.aiSettings || { provider: 'gemini', apiKey: '', baseUrl: '', model: '' };
+          canvasConfig = project.canvasConfig || { preset: 'custom', width: 1920, height: 1080, gridSnap: 1, showFrame: true };
           aiMessages = messages;
           selectedShapeId = null;
           selectedShapeIds.clear();
@@ -541,6 +544,7 @@
           groups,
           aiMessages,
           aiSettings,
+          canvasConfig,
           version: 'graps_v1',
           exportedAt: new Date().toISOString()
         };
@@ -571,6 +575,7 @@
               groups = data.groups || {};
               aiMessages = data.aiMessages || aiMessages;
               aiSettings = data.aiSettings || aiSettings;
+              canvasConfig = data.canvasConfig || { preset: 'custom', width: 1920, height: 1080, gridSnap: 1, showFrame: true };
               
               saveProjectState();
               render();

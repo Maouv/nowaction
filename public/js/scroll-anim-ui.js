@@ -126,6 +126,46 @@
       el.style.opacity   = '';
     }
     if (typeof render === 'function') render();
+    if (typeof updatePropertiesPanel === 'function') updatePropertiesPanel();
+  }
+
+  function updateLiveSidebarInputs() {
+    var shape = getShape();
+    if (!shape) return;
+    var anim = shape.animation;
+    
+    var rs = (anim && anim.rangeStart !== undefined) ? anim.rangeStart : 0;
+    var re = (anim && anim.rangeEnd !== undefined) ? anim.rangeEnd : 100;
+    
+    var inRange = state.scrub >= rs && state.scrub <= re;
+    var hasAnim = inRange && anim && anim.enabled && anim.keyframes && anim.keyframes.length > 0;
+    var localProgress = globalToLocal(state.scrub, rs, re);
+
+    var inputs = document.querySelectorAll('[data-shape-prop]');
+    inputs.forEach(function (input) {
+      if (document.activeElement === input) return; // Jangan timpa input yang sedang aktif diedit user
+      
+      var prop = input.getAttribute('data-shape-prop');
+      var val;
+      if (hasAnim) {
+        val = window.ScrollAnim.interpolateProp(anim.keyframes, prop, localProgress);
+      }
+      if (val === undefined) {
+        val = shape[prop];
+      }
+      
+      if (val !== undefined && val !== null) {
+        if (prop === 'opacity') {
+          input.value = Math.round(val);
+        } else if (prop === 'rotation') {
+          input.value = Math.round(val);
+        } else if (prop === 'blur') {
+          input.value = parseFloat(val.toFixed(1));
+        } else {
+          input.value = Math.round(val);
+        }
+      }
+    });
   }
 
   // ── Helpers ────────────────────────────────────────────────────────────────
@@ -257,23 +297,53 @@
     if (state.selectedIndex !== null) {
       var kf = kfs[state.selectedIndex];
       if (kf) {
-        var isCustom = Array.isArray(kf.ease);
-
         var propsGrid = PROP_DEFS.map(function (def) {
           var hasProp = kf[def.key] !== undefined;
           var val     = hasProp ? kf[def.key] : shapeCurrentVal(getShape(), def.key);
-          return '<div class="flex items-center space-x-1">' +
-            '<input type="checkbox" ' + (hasProp ? 'checked' : '') +
-              ' onchange="ScrollAnimUI.toggleProp(\'' + def.key + '\', this.checked, ' + val + ')"' +
-              ' class="accent-accent"/>' +
-            '<label class="text-[9px] text-textSec w-12 shrink-0">' + def.label + '</label>' +
-            '<input type="number" value="' + (hasProp ? kf[def.key] : '') + '" ' +
-              (hasProp ? '' : 'disabled ') +
-              'oninput="ScrollAnimUI.updateProp(\'' + def.key + '\', this.value)" ' +
-              'placeholder="' + def.unit + '" ' +
-              'class="bg-[#0a0a0a] border border-border text-text text-xs rounded px-2 py-1 flex-1 disabled:opacity-30"/>' +
-            '<span class="text-[9px] text-textSec">' + def.unit + '</span>' +
-          '</div>';
+          
+          var html = '<div class="space-y-1.5 border-b border-border/30 pb-2 mb-2">' +
+            '<div class="flex items-center space-x-1">' +
+              '<input type="checkbox" ' + (hasProp ? 'checked' : '') +
+                ' onchange="ScrollAnimUI.toggleProp(\'' + def.key + '\', this.checked, ' + val + ')"' +
+                ' class="accent-accent"/>' +
+              '<label class="text-[9px] text-textSec w-12 shrink-0">' + def.label + '</label>' +
+              '<input type="number" value="' + (hasProp ? kf[def.key] : '') + '" ' +
+                (hasProp ? '' : 'disabled ') +
+                'oninput="ScrollAnimUI.updateProp(\'' + def.key + '\', this.value)" ' +
+                'placeholder="' + def.unit + '" ' +
+                'class="bg-[#0a0a0a] border border-border text-text text-xs rounded px-2 py-1 flex-1 disabled:opacity-30"/>' +
+              '<span class="text-[9px] text-textSec w-6">' + def.unit + '</span>' +
+            '</div>';
+
+          if (hasProp) {
+            var easeKey = 'ease' + def.key.charAt(0).toUpperCase() + def.key.slice(1);
+            var propEase = kf[easeKey] !== undefined ? kf[easeKey] : (kf.ease || 'linear');
+            var isCustom = Array.isArray(propEase);
+            var bezierStr = isCustom ? propEase.join(' ') : (window.ScrollAnim.EASING_PRESETS[propEase] || [0, 0, 1, 1]).join(' ');
+
+            html += '<div class="pl-6 flex items-center space-x-2">' +
+              '<div class="flex-1">' +
+                '<select onchange="ScrollAnimUI.setPropEasing(\'' + def.key + '\', this.value)" class="bg-[#0a0a0a] border border-border text-text text-[10px] rounded px-1.5 py-0.5 w-full">' +
+                  EASING_OPTIONS.map(function (opt) {
+                    var sel = (isCustom && opt[0] === 'custom') || (!isCustom && propEase === opt[0]) ? 'selected' : '';
+                    return '<option value="' + opt[0] + '" ' + sel + '>' + opt[1] + '</option>';
+                  }).join('') +
+                '</select>' +
+              '</div>' +
+              '<div data-ease-svg="' + def.key + '">' + easingCurveSvg(propEase) + '</div>' +
+            '</div>';
+
+            if (isCustom) {
+              html += '<div class="pl-6 grid grid-cols-5 gap-1 items-center">' +
+                '<input type="text" value="' + bezierStr + '" oninput="ScrollAnimUI.setPropBezierStr(\'' + def.key + '\', this.value)" placeholder="0.42 0.00 1.00 1.00" class="col-span-3 bg-[#0a0a0a] border border-border text-text text-[10px] font-mono rounded px-1.5 py-0.5 w-full" title="Alight Motion compatible space-separated Bezier points"/>' +
+                '<button onclick="ScrollAnimUI.copyPropBezier(\'' + def.key + '\')" class="bg-border hover:bg-border/80 text-text text-[9px] rounded px-1 py-0.5 font-mono truncate" title="Copy Bezier">Copy</button>' +
+                '<button onclick="ScrollAnimUI.pastePropBezier(\'' + def.key + '\')" class="bg-border hover:bg-border/80 text-text text-[9px] rounded px-1 py-0.5 font-mono truncate" title="Paste Bezier">Paste</button>' +
+              '</div>';
+            }
+          }
+          
+          html += '</div>';
+          return html;
         }).join('');
 
         editorHtml =
@@ -282,26 +352,7 @@
               '<span class="text-[10px] font-bold text-textSec uppercase">Keyframe @ ' + kf.p.toFixed(0) + '% (dalam range)</span>' +
               '<button onclick="ScrollAnimUI.deleteKeyframe()" class="text-[10px] text-red-400 hover:text-red-300">Hapus</button>' +
             '</div>' +
-            '<div class="space-y-1">' + propsGrid + '</div>' +
-            '<div class="flex items-center space-x-2">' +
-              '<div class="flex-1">' +
-                '<label class="text-[9px] text-textSec uppercase block mb-1">Easing → keyframe berikutnya</label>' +
-                '<select onchange="ScrollAnimUI.setEasing(this.value)" class="bg-[#0a0a0a] border border-border text-text text-xs rounded px-2 py-1 w-full">' +
-                  EASING_OPTIONS.map(function (opt) {
-                    var sel = (isCustom && opt[0] === 'custom') || (!isCustom && kf.ease === opt[0]) ? 'selected' : '';
-                    return '<option value="' + opt[0] + '" ' + sel + '>' + opt[1] + '</option>';
-                  }).join('') +
-                '</select>' +
-              '</div>' +
-              easingCurveSvg(kf.ease) +
-            '</div>' +
-            (isCustom
-              ? '<div class="grid grid-cols-4 gap-1">' +
-                  kf.ease.map(function (v, idx) {
-                    return '<input type="number" step="0.01" value="' + v + '" oninput="ScrollAnimUI.setCustomBezier(' + idx + ', this.value)" class="bg-[#0a0a0a] border border-border text-text text-[10px] rounded px-1 py-1 w-full"/>';
-                  }).join('') +
-                '</div>'
-              : '') +
+            '<div class="space-y-1 max-h-[250px] overflow-y-auto pr-1">' + propsGrid + '</div>' +
           '</div>';
       }
     }
@@ -371,15 +422,20 @@
     // display:none outside range
     if (state.scrub < rs || state.scrub > re) {
       el.style.display = 'none';
+      updateLiveSidebarInputs();
       return;
     }
     el.style.display = '';
 
-    if (!anim.keyframes || !anim.keyframes.length) return;
+    if (!anim.keyframes || !anim.keyframes.length) {
+      updateLiveSidebarInputs();
+      return;
+    }
 
     // Convert global scrub → local progress within range
     var localProgress = globalToLocal(state.scrub, rs, re);
     window.ScrollAnim.applyToElement(el, anim, localProgress);
+    updateLiveSidebarInputs();
   }
 
   var playRAF = null, playStart = null;
@@ -541,6 +597,82 @@
       if (!Array.isArray(kf.ease)) kf.ease = [0.42, 0, 0.58, 1];
       kf.ease[i] = parseFloat(val) || 0;
       persist(); renderDrawer();
+    },
+
+    setPropEasing: function (prop, val) {
+      if (state.selectedIndex === null) return;
+      var kf = getKeyframes()[state.selectedIndex];
+      if (!kf) return;
+      var easeKey = 'ease' + prop.charAt(0).toUpperCase() + prop.slice(1);
+      kf[easeKey] = val === 'custom'
+        ? (Array.isArray(kf[easeKey]) ? kf[easeKey] : [0.42, 0, 0.58, 1])
+        : val;
+      persist(); renderDrawer();
+    },
+
+    setPropBezierStr: function (prop, str) {
+      if (state.selectedIndex === null) return;
+      var kf = getKeyframes()[state.selectedIndex];
+      if (!kf) return;
+      var easeKey = 'ease' + prop.charAt(0).toUpperCase() + prop.slice(1);
+      
+      // Allow spaces or commas as separators
+      var pts = str.trim().split(/[\s,]+/).map(Number);
+      if (pts.length === 4 && pts.every(function (n) { return !isNaN(n); })) {
+        kf[easeKey] = pts;
+        persist();
+        applyScrubPreview();
+        var svgContainer = document.querySelector('[data-ease-svg="' + prop + '"]');
+        if (svgContainer) {
+          svgContainer.innerHTML = easingCurveSvg(pts);
+        }
+      }
+    },
+
+    copyPropBezier: function (prop) {
+      if (state.selectedIndex === null) return;
+      var kf = getKeyframes()[state.selectedIndex];
+      if (!kf) return;
+      var easeKey = 'ease' + prop.charAt(0).toUpperCase() + prop.slice(1);
+      var propEase = kf[easeKey] !== undefined ? kf[easeKey] : (kf.ease || 'linear');
+      var pts = Array.isArray(propEase) ? propEase : (window.ScrollAnim.EASING_PRESETS[propEase] || [0, 0, 1, 1]);
+      var str = pts.map(function(num) { return num.toFixed(2); }).join(' ');
+      
+      navigator.clipboard.writeText(str).then(function () {
+        alert('Bezier copied: ' + str);
+      }).catch(function (err) {
+        alert('Failed to copy: ' + str + ' (Error: ' + err + ')');
+      });
+    },
+
+    pastePropBezier: function (prop) {
+      if (state.selectedIndex === null) return;
+      var kf = getKeyframes()[state.selectedIndex];
+      if (!kf) return;
+      var easeKey = 'ease' + prop.charAt(0).toUpperCase() + prop.slice(1);
+      
+      navigator.clipboard.readText().then(function (text) {
+        var pts = text.trim().split(/[\s,]+/).map(Number);
+        if (pts.length === 4 && pts.every(function (n) { return !isNaN(n); })) {
+          kf[easeKey] = pts;
+          persist();
+          renderDrawer();
+        } else {
+          alert('Format bezier clipboard tidak valid. Pastikan 4 angka dipisah spasi/koma, contoh: 0.42 0.00 1.00 1.00');
+        }
+      }).catch(function () {
+        var text = prompt('Silakan paste string Bezier (contoh: 0.42 0.00 1.00 1.00):');
+        if (text) {
+          var pts = text.trim().split(/[\s,]+/).map(Number);
+          if (pts.length === 4 && pts.every(function (n) { return !isNaN(n); })) {
+            kf[easeKey] = pts;
+            persist();
+            renderDrawer();
+          } else {
+            alert('Format bezier tidak valid.');
+          }
+        }
+      });
     },
 
     deleteKeyframe: function () {

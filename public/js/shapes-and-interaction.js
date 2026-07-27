@@ -2,6 +2,42 @@
    Classic script (no ES modules) — relies on shared global scope with the other js/*.js files,
    loaded in the same order they appear in index.html. Do not reorder the <script> tags. */
 
+      // Math Expression Evaluator
+      function evaluatePxExpression(inputStr, currentVal = 0) {
+        if (typeof inputStr !== 'string') return Math.round(Number(inputStr) || 0);
+        let str = inputStr.trim().replace(/px$/i, '').trim();
+        if (!str) return currentVal;
+        
+        // Handle relative ops like "+20", "-15", "*2", "/4"
+        if (/^[\+\-\*\/]/.test(str)) {
+          str = `${currentVal} ${str}`;
+        }
+        
+        // Clean sanitization: allow only numbers, spaces, dot, +, -, *, /, (, )
+        if (!/^[0-9\.\s\+\-\*\/\(\)]+$/.test(str)) {
+          const fallback = parseFloat(str);
+          return isNaN(fallback) ? currentVal : Math.round(fallback);
+        }
+        
+        try {
+          // Safe evaluation using Function context
+          const result = new Function(`'use strict'; return (${str})`)();
+          if (typeof result === 'number' && !isNaN(result) && isFinite(result)) {
+            return Math.round(result);
+          }
+        } catch (e) {
+          // Fallback
+        }
+        
+        const parsed = parseFloat(str);
+        return isNaN(parsed) ? currentVal : Math.round(parsed);
+      }
+
+      function snapPx(val, gridSize) {
+        if (!gridSize || gridSize <= 1) return Math.round(val);
+        return Math.round(val / gridSize) * gridSize;
+      }
+
       // Main drawing / adding shape function
       function addShapeAt(worldX, worldY) {
         const type = activeTool;
@@ -820,12 +856,13 @@
           const worldDx = dx / scale;
           const worldDy = dy / scale;
 
+          const gridSnap = window.canvasConfig ? window.canvasConfig.gridSnap : 1;
           let moved = false;
           dragGroupStartPositions.forEach((startPos, sid) => {
             const s = shapes.find(sh => sh.id === sid);
             if (s && !s.locked) {
-              s.x = Math.round(startPos.x + worldDx);
-              s.y = Math.round(startPos.y + worldDy);
+              s.x = snapPx(startPos.x + worldDx, gridSnap);
+              s.y = snapPx(startPos.y + worldDy, gridSnap);
               moved = true;
             }
           });
@@ -846,15 +883,16 @@
             const worldDx = dx / scale;
             const worldDy = dy / scale;
 
+            const gridSnap = window.canvasConfig ? window.canvasConfig.gridSnap : 1;
             if (shape.type === 'circle') {
               // Circles are linked 1:1 on visual canvas drag resize
               const maxDelta = Math.max(worldDx, worldDy);
-              const newSize = Math.max(10, Math.round(startShapeW + maxDelta));
+              const newSize = Math.max(10, snapPx(startShapeW + maxDelta, gridSnap));
               shape.w = newSize;
               shape.h = newSize;
             } else {
-              shape.w = Math.max(10, Math.round(startShapeW + worldDx));
-              shape.h = Math.max(10, Math.round(startShapeH + worldDy));
+              shape.w = Math.max(10, snapPx(startShapeW + worldDx, gridSnap));
+              shape.h = Math.max(10, snapPx(startShapeH + worldDy, gridSnap));
             }
             render();
             updatePropertiesPanel();
@@ -944,8 +982,7 @@
 
         // Parse types properly
         if (['x', 'y', 'w', 'h', 'strokeWidth', 'borderRadius', 'blur', 'opacity', 'fontSize', 'rotation'].includes(prop)) {
-          value = parseInt(value);
-          if (isNaN(value)) value = 0;
+          value = evaluatePxExpression(value, shape[prop]);
         }
 
         if (prop === 'opacity') {

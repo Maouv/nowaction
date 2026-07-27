@@ -2,7 +2,7 @@
   "id": "legacy-default",
   "name": "My First Project",
   "createdAt": "2026-07-18T08:39:55.527Z",
-  "updatedAt": "2026-07-25T02:54:08.955Z",
+  "updatedAt": "2026-07-27T01:05:09.957Z",
   "shapes": [
     {
       "id": "sh_1784945372347_mcca",
@@ -78,8 +78,8 @@
       "locked": false,
       "w": 172,
       "h": 139,
-      "x": -25,
-      "y": 2,
+      "x": -149,
+      "y": -342,
       "animation": {
         "enabled": false,
         "mode": "element",

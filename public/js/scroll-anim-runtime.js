@@ -149,7 +149,9 @@
       if (progress >= a.p && progress <= b.p) {
         var span = b.p - a.p;
         var t = span <= 0 ? 1 : (progress - a.p) / span;
-        var eased = getEasingFn(a.ease || 'linear')(t);
+        var propEaseKey = 'ease' + prop.charAt(0).toUpperCase() + prop.slice(1);
+        var propEase = a[propEaseKey] !== undefined ? a[propEaseKey] : (a.ease || 'linear');
+        var eased = getEasingFn(propEase)(t);
         return a[prop] + (b[prop] - a[prop]) * eased;
       }
     }

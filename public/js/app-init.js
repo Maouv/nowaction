@@ -131,18 +131,22 @@
           const saved = localStorage.getItem('graps_designer_shapes_v1');
           const savedCounter = localStorage.getItem('graps_designer_counter_v1');
           const savedGroups = localStorage.getItem('graps_designer_groups_v1');
+          const savedCanvas = localStorage.getItem('graps_canvas_config_v1');
           
           if (saved) {
             try {
               shapes = JSON.parse(saved);
               if (savedCounter) shapeCounter = JSON.parse(savedCounter);
               groups = savedGroups ? JSON.parse(savedGroups) : {};
+              if (savedCanvas) canvasConfig = JSON.parse(savedCanvas);
             } catch (e) {
               groups = {};
+              canvasConfig = { preset: 'custom', width: 1920, height: 1080, gridSnap: 1, showFrame: true };
               loadDefaultShapes();
             }
           } else {
             groups = {};
+            canvasConfig = { preset: 'custom', width: 1920, height: 1080, gridSnap: 1, showFrame: true };
             loadDefaultShapes();
           }
 
@@ -168,6 +172,7 @@
           localStorage.setItem('graps_designer_shapes_v1', JSON.stringify(shapes));
           localStorage.setItem('graps_designer_counter_v1', JSON.stringify(shapeCounter));
           localStorage.setItem('graps_designer_groups_v1', JSON.stringify(groups));
+          localStorage.setItem('graps_canvas_config_v1', JSON.stringify(canvasConfig));
           localStorage.setItem('graps_ai_settings_v1', JSON.stringify(aiSettings));
           localStorage.setItem('graps_ai_messages_v1', JSON.stringify(aiMessages));
         }
