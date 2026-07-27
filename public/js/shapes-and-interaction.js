@@ -998,6 +998,136 @@
         saveToLocalStorage();
       }
 
+      // ==========================================
+      // CUSTOM PX — ENHANCED INPUT LOGIC (Step 4)
+      // ==========================================
+
+      // Aspect ratio lock state (per selection)
+      let _aspectRatioLocked = false;
+      let _aspectRatioValue = null; // w / h
+
+      window.toggleAspectRatioLock = function() {
+        const shape = shapes.find(s => s.id === selectedShapeId);
+        if (!shape) return;
+        _aspectRatioLocked = !_aspectRatioLocked;
+        if (_aspectRatioLocked && shape.h > 0) {
+          _aspectRatioValue = shape.w / shape.h;
+        } else {
+          _aspectRatioValue = null;
+        }
+        updatePropertiesPanel();
+      };
+
+      window.isAspectRatioLocked = function() {
+        return _aspectRatioLocked;
+      };
+
+      // Geometry input keydown: Arrow nudging + px suffix strip
+      window.handleGeometryKeydown = function(event, prop) {
+        const shape = shapes.find(s => s.id === selectedShapeId);
+        if (!shape) return;
+
+        let delta = 0;
+        if (event.key === 'ArrowUp')   { delta = event.shiftKey ? 10 : 1;  event.preventDefault(); }
+        if (event.key === 'ArrowDown') { delta = event.shiftKey ? -10 : -1; event.preventDefault(); }
+        if (delta === 0) return;
+
+        const gridSnap = (window.canvasConfig && window.canvasConfig.gridSnap > 1) ? window.canvasConfig.gridSnap : 1;
+        let current = shape[prop] || 0;
+        let newVal = snapPx(current + delta, gridSnap);
+
+        // Aspect ratio propagation for W/H
+        if (_aspectRatioLocked && _aspectRatioValue) {
+          if (prop === 'w') {
+            shape.w = Math.max(1, newVal);
+            shape.h = Math.max(1, Math.round(newVal / _aspectRatioValue));
+          } else if (prop === 'h') {
+            shape.h = Math.max(1, newVal);
+            shape.w = Math.max(1, Math.round(newVal * _aspectRatioValue));
+          } else {
+            shape[prop] = newVal;
+          }
+        } else {
+          if (prop === 'w' || prop === 'h') newVal = Math.max(1, newVal);
+          shape[prop] = newVal;
+        }
+
+        event.target.value = shape[prop];
+        render();
+        saveToLocalStorage();
+        // Re-render panel so W/H both update if aspect locked
+        if (_aspectRatioLocked && (prop === 'w' || prop === 'h')) {
+          updatePropertiesPanel();
+        }
+      };
+
+      // updateShapeVal with aspect ratio propagation
+      const _origUpdateShapeVal = window.updateShapeVal;
+      window.updateShapeVal = function(prop, value) {
+        if (!selectedShapeId) return;
+        const shape = shapes.find(s => s.id === selectedShapeId);
+        if (!shape) return;
+
+        if (['x', 'y', 'w', 'h', 'strokeWidth', 'borderRadius', 'blur', 'opacity', 'fontSize', 'rotation'].includes(prop)) {
+          value = evaluatePxExpression(value, shape[prop]);
+        }
+        if (prop === 'opacity') value = Math.min(100, Math.max(0, value));
+
+        if (_aspectRatioLocked && _aspectRatioValue) {
+          if (prop === 'w') {
+            shape.w = Math.max(1, value);
+            shape.h = Math.max(1, Math.round(value / _aspectRatioValue));
+          } else if (prop === 'h') {
+            shape.h = Math.max(1, value);
+            shape.w = Math.max(1, Math.round(value * _aspectRatioValue));
+          } else {
+            shape[prop] = value;
+          }
+        } else {
+          if (prop === 'w' || prop === 'h') value = Math.max(1, value);
+          shape[prop] = value;
+        }
+
+        render();
+        saveToLocalStorage();
+      };
+
+      // ==========================================
+      // CANVAS CONFIG UPDATER (Step 2 — missing fn)
+      // ==========================================
+
+      window.updateCanvasConfig = function(key, value) {
+        if (!window.canvasConfig) return;
+
+        const PRESET_SIZES = {
+          '1920x1080': { width: 1920, height: 1080 },
+          '1080x1920': { width: 1080, height: 1920 },
+          '1080x1080': { width: 1080, height: 1080 },
+        };
+
+        if (key === 'preset') {
+          window.canvasConfig.preset = value;
+          if (PRESET_SIZES[value]) {
+            window.canvasConfig.width  = PRESET_SIZES[value].width;
+            window.canvasConfig.height = PRESET_SIZES[value].height;
+          }
+        } else if (key === 'width' || key === 'height') {
+          const parsed = evaluatePxExpression(String(value), window.canvasConfig[key]);
+          window.canvasConfig[key] = Math.max(1, parsed);
+        } else if (key === 'gridSnap') {
+          window.canvasConfig.gridSnap = parseInt(value) || 1;
+        } else {
+          window.canvasConfig[key] = value;
+        }
+
+        // Persist immediately
+        try { localStorage.setItem('graps_canvas_config_v1', JSON.stringify(window.canvasConfig)); } catch(e) {}
+        if (typeof saveToLocalStorage === 'function') saveToLocalStorage();
+
+        render();
+        if (typeof updatePropertiesPanel === 'function') updatePropertiesPanel();
+      };
+
       // Update color swatch preview block when writing hex values
       window.updateSwatch = function(swatchId, hexVal) {
         const swatch = document.getElementById(swatchId);
@@ -1008,5 +1138,6 @@
           }
         }
       }
+
 
 

@@ -188,16 +188,25 @@
           if (y < minY) minY = y;
           if (y + h > maxY) maxY = y + h;
         });
-        const contentWidth = Math.max(1, Math.round(maxX - minX));
-        const contentHeight = Math.max(1, Math.round(maxY - minY));
 
-        let html = '<!-- Spec template exported from NOWACTION -->\n';
+        // Use Artboard dimensions when a frame is active
+        const cfg = window.canvasConfig;
+        let contentWidth, contentHeight;
+        if (cfg && cfg.preset !== 'infinite') {
+          // Artboard mode: canvas origin is (0,0), offset shapes relative to frame
+          minX = Math.min(minX, 0);
+          minY = Math.min(minY, 0);
+          contentWidth  = cfg.width;
+          contentHeight = cfg.height;
+        } else {
+          contentWidth  = Math.max(1, Math.round(maxX - minX));
+          contentHeight = Math.max(1, Math.round(maxY - minY));
+        }
+
+        const artboardActive = cfg && cfg.preset !== 'infinite';
+        let html = `<!-- Spec template exported from NOWACTION${artboardActive ? ` — Artboard ${contentWidth}×${contentHeight}px` : ''} -->\n`;
         html += getGoogleFontsExportLinks();
-        // Sized exactly to the content's bounding box — previously this was
-        // width:100%; height:100vh; overflow:hidden, which silently clipped
-        // any design taller than one viewport when the exported file was
-        // opened standalone.
-        html += `<div style="position:relative; width:${contentWidth}px; height:${contentHeight}px; background:#0a0a0a;">\n`;
+        html += `<div style="position:relative; width:${contentWidth}px; height:${contentHeight}px; background:#0a0a0a; overflow:hidden;">\n`;
 
         const animManifest = [];
 
@@ -383,6 +392,7 @@ ${fragment}
           alert('Failed to generate ZIP file.');
         });
       }
+
 
 
 

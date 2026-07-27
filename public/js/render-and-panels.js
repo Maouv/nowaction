@@ -18,6 +18,39 @@
           <div class="absolute w-px h-6 bg-[#404040] left-0 top-[-12px] pointer-events-none"></div>
         `;
 
+        // ── ARTBOARD FRAME (Step 3) ──────────────────────────────────────
+        const cfg = window.canvasConfig;
+        if (cfg && cfg.preset !== 'infinite') {
+          const fw = cfg.width  || 1920;
+          const fh = cfg.height || 1080;
+          htmlStr += `
+            <!-- Artboard Frame -->
+            <div class="absolute pointer-events-none"
+                 style="left:0; top:0; width:${fw}px; height:${fh}px;
+                        outline: 1.5px solid rgba(255,255,255,0.18);
+                        box-shadow: 0 0 0 1px rgba(0,0,0,0.7), 0 4px 32px rgba(0,0,0,0.55);
+                        z-index: 9999;">
+              <!-- Dimension badge — top-left -->
+              <span style="position:absolute; top:-20px; left:0;
+                           font: 600 10px/1 'JetBrains Mono', 'Fira Mono', monospace;
+                           color: rgba(255,255,255,0.45);
+                           white-space: nowrap; pointer-events: none; user-select: none;">
+                ${fw} × ${fh} px
+              </span>
+              <!-- Corner marks -->
+              <div style="position:absolute;top:0;left:0;width:12px;height:1.5px;background:rgba(255,255,255,0.45)"></div>
+              <div style="position:absolute;top:0;left:0;width:1.5px;height:12px;background:rgba(255,255,255,0.45)"></div>
+              <div style="position:absolute;top:0;right:0;width:12px;height:1.5px;background:rgba(255,255,255,0.45)"></div>
+              <div style="position:absolute;top:0;right:0;width:1.5px;height:12px;background:rgba(255,255,255,0.45)"></div>
+              <div style="position:absolute;bottom:0;left:0;width:12px;height:1.5px;background:rgba(255,255,255,0.45)"></div>
+              <div style="position:absolute;bottom:0;left:0;width:1.5px;height:12px;background:rgba(255,255,255,0.45)"></div>
+              <div style="position:absolute;bottom:0;right:0;width:12px;height:1.5px;background:rgba(255,255,255,0.45)"></div>
+              <div style="position:absolute;bottom:0;right:0;width:1.5px;height:12px;background:rgba(255,255,255,0.45)"></div>
+            </div>
+          `;
+        }
+        // ─────────────────────────────────────────────────────────────────
+
         shapes.forEach((shape, index) => {
           const isSelected = selectedShapeIds.has(shape.id);
           const isPrimary = selectedShapeId === shape.id;
@@ -367,30 +400,45 @@
         // Custom inputs HTML
         const isText = shape.type === 'text';
         
+        const _arLocked = typeof isAspectRatioLocked === 'function' && isAspectRatioLocked();
+        const inputCls = 'bg-[#0a0a0a] border border-border text-text font-mono text-xs rounded px-2.5 py-1.5 focus:outline-none focus:border-accent w-full';
         const contentHtml = `
-          <!-- Position & Dimension Box (Precise Typing) -->
+          <!-- Position & Dimension Box (Precise Typing + Arrow Nudge) -->
           <div class="space-y-3 border-b border-border/50 pb-4">
-            <span class="text-[10px] font-mono font-bold text-textSec uppercase tracking-wider">Geometry</span>
+            <div class="flex items-center justify-between">
+              <span class="text-[10px] font-mono font-bold text-textSec uppercase tracking-wider">Geometry</span>
+              <span class="text-[8px] font-mono text-textSec/60 italic">↑↓ nudge · Shift+↑↓ ×10</span>
+            </div>
             <div class="grid grid-cols-2 gap-2">
               <div>
                 <label class="text-[9px] font-mono text-textSec uppercase tracking-wider block mb-1">X Pos</label>
-                <input type="text" data-shape-prop="x" value="${shape.x}" onchange="updateShapeVal('x', this.value)" class="bg-[#0a0a0a] border border-border text-text font-mono text-xs rounded px-2.5 py-1.5 focus:outline-none focus:border-accent w-full" />
+                <input type="text" data-shape-prop="x" value="${shape.x}" onchange="updateShapeVal('x', this.value)" onkeydown="handleGeometryKeydown(event,'x')" class="${inputCls}" placeholder="px" />
               </div>
               <div>
                 <label class="text-[9px] font-mono text-textSec uppercase tracking-wider block mb-1">Y Pos</label>
-                <input type="text" data-shape-prop="y" value="${shape.y}" onchange="updateShapeVal('y', this.value)" class="bg-[#0a0a0a] border border-border text-text font-mono text-xs rounded px-2.5 py-1.5 focus:outline-none focus:border-accent w-full" />
+                <input type="text" data-shape-prop="y" value="${shape.y}" onchange="updateShapeVal('y', this.value)" onkeydown="handleGeometryKeydown(event,'y')" class="${inputCls}" placeholder="px" />
               </div>
-              <div>
+            </div>
+            <!-- W / H row with aspect ratio lock -->
+            <div class="flex items-end gap-1.5">
+              <div class="flex-1">
                 <label class="text-[9px] font-mono text-textSec uppercase tracking-wider block mb-1">Width</label>
-                <input type="text" data-shape-prop="w" value="${shape.w}" onchange="updateShapeVal('w', this.value)" class="bg-[#0a0a0a] border border-border text-text font-mono text-xs rounded px-2.5 py-1.5 focus:outline-none focus:border-accent w-full" />
+                <input type="text" data-shape-prop="w" value="${shape.w}" onchange="updateShapeVal('w', this.value)" onkeydown="handleGeometryKeydown(event,'w')" class="${inputCls}" placeholder="px" />
               </div>
-              <div>
+              <!-- Lock toggle -->
+              <button onclick="toggleAspectRatioLock()" title="${_arLocked ? 'Unlock Aspect Ratio' : 'Lock Aspect Ratio W:H'}"
+                class="mb-0.5 w-7 h-7 flex items-center justify-center rounded border ${_arLocked ? 'bg-accent/20 border-accent text-accent' : 'bg-[#0a0a0a] border-border text-textSec hover:border-accent hover:text-accent'} transition-colors shrink-0">
+                <i class="codicon ${_arLocked ? 'codicon-lock' : 'codicon-unlock'} text-[11px]"></i>
+              </button>
+              <div class="flex-1">
                 <label class="text-[9px] font-mono text-textSec uppercase tracking-wider block mb-1">Height</label>
-                <input type="text" data-shape-prop="h" value="${shape.h}" onchange="updateShapeVal('h', this.value)" class="bg-[#0a0a0a] border border-border text-text font-mono text-xs rounded px-2.5 py-1.5 focus:outline-none focus:border-accent w-full" />
+                <input type="text" data-shape-prop="h" value="${shape.h}" onchange="updateShapeVal('h', this.value)" onkeydown="handleGeometryKeydown(event,'h')" class="${inputCls}" placeholder="px" />
               </div>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
               <div>
                 <label class="text-[9px] font-mono text-textSec uppercase tracking-wider block mb-1">Rotation (deg)</label>
-                <input type="text" data-shape-prop="rotation" value="${shape.rotation || 0}" onchange="updateShapeVal('rotation', this.value)" class="bg-[#0a0a0a] border border-border text-text font-mono text-xs rounded px-2.5 py-1.5 focus:outline-none focus:border-accent w-full" />
+                <input type="text" data-shape-prop="rotation" value="${shape.rotation || 0}" onchange="updateShapeVal('rotation', this.value)" onkeydown="handleGeometryKeydown(event,'rotation')" class="${inputCls}" />
               </div>
             </div>
             <button onclick="openAnimationTimeline('${shape.id}')" class="w-full flex items-center justify-center space-x-1.5 px-2.5 py-1.5 bg-accent/15 hover:bg-accent/25 border border-accent/40 text-accent text-[10px] font-semibold rounded transition-colors">
@@ -603,4 +651,5 @@
       // AI COPILOT BRING-YOUR-OWN-KEY (BYOK) ENGINE
       // ==========================================
       
+
 
