@@ -47,6 +47,10 @@
       let dragMode = null; // 'pan' | 'drag' | 'resize' | 'zoom'
       let dragShapeId = null;
       const dragGroupStartPositions = new Map(); // sid -> {x, y} snapshot for group-aware drag
+      // ponytail: snapshot keyframes for shift-all-on-drag (drawer closed) and edit-at-scrub (drawer open).
+      // Add when needed: undo history stack for accidental multi-kf shifts.
+      const dragGroupStartKeyframes = new Map(); // sid -> [{ref, x, y}] for drawer-closed shift-all
+      const dragScrubKfEdits = new Map();        // sid -> {ref, x, y}   for drawer-open edit-at-scrub
       let startPanX = 0, startPanY = 0;
       let startShapeX = 0, startShapeY = 0;
       let startShapeW = 0, startShapeH = 0;

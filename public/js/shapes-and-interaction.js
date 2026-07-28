@@ -674,6 +674,41 @@
         };
       }
 
+      // ponytail: drawer-open B-mode helper. Find-or-create keyframe at current scrub,
+      // snapshot its x/y so dragmove can apply delta to that one kf only (AE auto-keyframe).
+      // Returns null when drawer closed or shape isn't the one being scrubbed.
+      // Add when needed: live drawer re-render after drag (renderDrawer is not exposed).
+      function snapshotScrubKfEdit(shape) {
+        if (!shape || !shape.animation) return null;
+        var drawer = document.getElementById('anim-timeline-drawer');
+        if (!drawer || drawer.classList.contains('hidden')) return null;
+        var p = window._animPreview;
+        if (!p || p.shapeId !== shape.id) return null;
+        var anim = shape.animation;
+        if (!anim.keyframes) return null;
+        var slider = document.querySelector('#anim-timeline-drawer input[type="range"]');
+        // ponytail: prefer _animPreview.scrub (synced by applyScrubPreview) over slider.value —
+        // scrub() updates state.scrub + _animPreview but does NOT write slider.value, so the
+        // DOM input is stale mid-scrub. Add when needed: a getter on ScrollAnimUI for state.scrub.
+        var scrub = (p.scrub != null) ? p.scrub : (slider ? (parseFloat(slider.value) || 0) : 0);
+        var rs = anim.rangeStart != null ? anim.rangeStart : 0;
+        var re = anim.rangeEnd   != null ? anim.rangeEnd   : 100;
+        var span = re - rs;
+        var localPct = span <= 0 ? 0
+          : Math.min(100, Math.max(0, Math.round(((scrub - rs) / span) * 100)));
+        var kf = anim.keyframes.find(function (k) { return k.p === localPct; });
+        if (!kf) {
+          var curX = window.ScrollAnim.interpolateProp(anim.keyframes, 'x', localPct);
+          var curY = window.ScrollAnim.interpolateProp(anim.keyframes, 'y', localPct);
+          kf = { p: localPct, ease: 'linear',
+                 x: (curX !== undefined ? curX : shape.x),
+                 y: (curY !== undefined ? curY : shape.y) };
+          anim.keyframes.push(kf);
+          anim.keyframes.sort(function (a, b) { return a.p - b.p; });
+        }
+        return { ref: kf, x: kf.x, y: kf.y };
+      }
+
       // Pointer Event handlers for viewport
       function handlePointerDown(e) {
         if (isEditingText) return; // completely lock interaction during typing
@@ -775,9 +810,22 @@
                 // Snapshot starting position of EVERY selected shape (group-aware drag).
                 // selectedShapeIds was just synced to the full group by selectShape() above.
                 dragGroupStartPositions.clear();
+                dragGroupStartKeyframes.clear();
+                dragScrubKfEdits.clear();
                 selectedShapeIds.forEach(sid => {
                   const s = shapes.find(sh => sh.id === sid);
-                  if (s) dragGroupStartPositions.set(sid, { x: s.x, y: s.y });
+                  if (!s) return;
+                  dragGroupStartPositions.set(sid, { x: s.x, y: s.y });
+                  // ponytail: drawer closed → snapshot all kfs for shift-all-on-drag (A mode).
+                  // drawer open + this shape is the scrubbed one → snapshot kf-at-scrub (B mode).
+                  var scrubEdit = snapshotScrubKfEdit(s);
+                  if (scrubEdit) {
+                    dragScrubKfEdits.set(sid, scrubEdit);
+                  } else if (s.animation && s.animation.keyframes && s.animation.keyframes.length) {
+                    dragGroupStartKeyframes.set(sid, s.animation.keyframes
+                      .filter(function (k) { return k.x !== undefined || k.y !== undefined; })
+                      .map(function (k) { return { ref: k, x: k.x, y: k.y }; }));
+                  }
                 });
               }
               return;
@@ -861,8 +909,21 @@
           dragGroupStartPositions.forEach((startPos, sid) => {
             const s = shapes.find(sh => sh.id === sid);
             if (s && !s.locked) {
-              s.x = snapPx(startPos.x + worldDx, gridSnap);
-              s.y = snapPx(startPos.y + worldDy, gridSnap);
+              var scrubEdit = dragScrubKfEdits.get(sid);
+              if (scrubEdit) {
+                // drawer open (B): edit keyframe at scrub only — base position untouched.
+                scrubEdit.ref.x = snapPx(scrubEdit.x + worldDx, gridSnap);
+                scrubEdit.ref.y = snapPx(scrubEdit.y + worldDy, gridSnap);
+              } else {
+                // drawer closed (A): move base + shift ALL keyframes by same delta.
+                s.x = snapPx(startPos.x + worldDx, gridSnap);
+                s.y = snapPx(startPos.y + worldDy, gridSnap);
+                var kfSnaps = dragGroupStartKeyframes.get(sid);
+                if (kfSnaps) kfSnaps.forEach(function (k) {
+                  if (k.x !== undefined) k.ref.x = snapPx(k.x + worldDx, gridSnap);
+                  if (k.y !== undefined) k.ref.y = snapPx(k.y + worldDy, gridSnap);
+                });
+              }
               moved = true;
             }
           });
@@ -915,6 +976,8 @@
           dragMode = null;
           dragShapeId = null;
           dragGroupStartPositions.clear();
+          dragGroupStartKeyframes.clear();
+          dragScrubKfEdits.clear();
           saveToLocalStorage();
         } else if (activePointers.size === 1 && dragMode === 'zoom') {
           // Seamless transition back to pan mode if one touch is released
