@@ -1246,11 +1246,13 @@
       const visibleLeft = clamp(left, -10, 110);
       const visibleRight = clamp(right, -10, 110);
       const barWidth = Math.max(0.5, visibleRight - visibleLeft);
+      const lo = Math.min(start, end);
+      const hi = Math.max(start, end);
       const keyframes = anim.keyframes.filter(keyframeHasVisualProperties).map((kf) => {
-        const pct = timelineProgressToPercent(getKeyframeProgress(kf));
-        if (pct < -5 || pct > 105) return '';
+        const at = getKeyframeProgress(kf);
+        const relPct = hi > lo ? ((at - lo) / (hi - lo)) * 100 : 50;
         const active = state.selectedKeyframeId === kf.id ? 'na-kf-selected' : '';
-        return `<button class="na-keyframe ${active}" data-kf-id="${escapeAttr(kf.id)}" data-layer-id="${escapeAttr(shape.id)}" style="left:${pct}%" aria-label="Keyframe at ${formatPct(getKeyframeProgress(kf))}"></button>`;
+        return `<button class="na-keyframe ${active}" data-kf-id="${escapeAttr(kf.id)}" data-layer-id="${escapeAttr(shape.id)}" style="left:clamp(14px, ${relPct}%, calc(100% - 14px))" aria-label="Keyframe at ${formatPct(at)}"></button>`;
       }).join('');
       html.push(`
         <div class="na-timeline-row" data-layer-id="${escapeAttr(shape.id)}" data-row-index="${index}" style="top:${index * rowHeight}px">
@@ -1263,8 +1265,8 @@
           <div class="na-track-cell" data-track-layer-id="${escapeAttr(shape.id)}">
             <div class="na-bar ${selected ? 'na-bar-selected' : ''}" data-bar-id="${escapeAttr(shape.id)}" style="left:${visibleLeft}%;width:${barWidth}%">
               ${selected ? `<span class="na-bar-handle start" data-trim="start" data-layer-id="${escapeAttr(shape.id)}"></span><span class="na-bar-handle end" data-trim="end" data-layer-id="${escapeAttr(shape.id)}"></span>` : ''}
+              ${keyframes}
             </div>
-            ${keyframes}
             <div class="na-playhead-line na-row-playhead"></div>
           </div>
         </div>
@@ -1290,12 +1292,14 @@
       bar.style.left = `${left}%`;
       bar.style.width = `${Math.max(.5, right - left)}%`;
     }
+    const lo = Math.min(start, end);
+    const hi = Math.max(start, end);
     row.querySelectorAll('.na-keyframe').forEach((button) => {
       const keyframe = anim.keyframes.find((kf) => kf.id === button.dataset.kfId);
       if (!keyframe) return;
-      const pct = timelineProgressToPercent(getKeyframeProgress(keyframe));
-      button.style.left = `${pct}%`;
-      button.style.display = pct < -5 || pct > 105 ? 'none' : '';
+      const at = getKeyframeProgress(keyframe);
+      const relPct = hi > lo ? ((at - lo) / (hi - lo)) * 100 : 50;
+      button.style.left = `clamp(14px, ${relPct}%, calc(100% - 14px))`;
     });
   }
 

@@ -312,7 +312,7 @@ button { -webkit-tap-highlight-color: transparent; }
   position: absolute;
   width: 28px;
   height: 28px;
-  top: 10px;
+  top: 0;
   transform: translateX(-50%);
   border: 0;
   background: transparent;
