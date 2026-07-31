@@ -369,7 +369,20 @@ app.post('/api/projects', async (req, res) => {
       shapeCounter: { ...DEFAULT_SHAPE_COUNTER },
       groups: {},
       aiSettings: {},
-      activeSessionId: null
+      activeSessionId: null,
+      schemaVersion: 3,
+      viewport: { width: 390, height: 844 },
+      canvasConfig: {
+        preset: 'mobile',
+        width: 390,
+        height: 2400,
+        gridSnap: 1,
+        showFrame: true,
+        heightMode: 'auto',
+        customHeight: 2400,
+        bottomPadding: 160
+      },
+      background: { color: '#ffffff', transparent: false }
     };
 
     await writeJson(projectFilePath(id), project);
@@ -414,7 +427,18 @@ app.put('/api/projects/:projectId', async (req, res) => {
     const existing = await readJson(projectFilePath(projectId), null);
     if (!existing) return res.status(404).json({ error: 'Project not found.' });
 
-    const { name, shapes, shapeCounter, groups, aiSettings, activeSessionId } = req.body;
+    const {
+      name,
+      shapes,
+      shapeCounter,
+      groups,
+      aiSettings,
+      activeSessionId,
+      schemaVersion,
+      viewport,
+      canvasConfig,
+      background
+    } = req.body;
     const now = new Date().toISOString();
 
     const updated = {
@@ -425,6 +449,10 @@ app.put('/api/projects/:projectId', async (req, res) => {
       groups: groups !== undefined ? groups : existing.groups,
       aiSettings: aiSettings !== undefined ? aiSettings : existing.aiSettings,
       activeSessionId: activeSessionId !== undefined ? activeSessionId : existing.activeSessionId,
+      schemaVersion: schemaVersion !== undefined ? schemaVersion : existing.schemaVersion,
+      viewport: viewport !== undefined ? viewport : existing.viewport,
+      canvasConfig: canvasConfig !== undefined ? canvasConfig : existing.canvasConfig,
+      background: background !== undefined ? background : existing.background,
       updatedAt: now
     };
 

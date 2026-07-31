@@ -1,576 +1,137 @@
 <!doctype html>
-<html lang="en" class="h-full bg-bg text-text selection:bg-accent/30 selection:text-white">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>NOWACTION — Mobile-First Minimal Design Tool</title>
-    
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-    
-    <!-- VS Code Codicons -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@vscode/codicons/dist/codicon.css">
-    
-    <!-- JSZip Library for packaging zips in-browser -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            colors: {
-              bg: '#0B0B0C',
-              panel: '#121214',
-              border: '#1F1F23',
-              text: '#EEEEEE',
-              textSec: '#9CA3AF',
-              accent: '#0066cc',
-            },
-            fontFamily: {
-              sans: ['"Space Grotesk"', 'Inter', 'sans-serif'],
-              inter: ['Inter', 'sans-serif'],
-              mono: ['JetBrains Mono', 'monospace'],
-            }
-          }
-        }
-      }
-    </script>
-    <style>
-      /* Prevent scrolling on viewport to make canvas-drag feel like native app */
-      html, body {
-        overflow: hidden;
-        overscroll-behavior: none;
-        user-select: none;
-        -webkit-user-select: none;
-        -webkit-tap-highlight-color: transparent;
-        touch-action: none;
-      }
-      
-      #canvas-viewport {
-        touch-action: none;
-      }
-      
-      /* Subtle CSS grid pattern */
-      .canvas-grid {
-        background-image: radial-gradient(#262626 1px, transparent 1px);
-        background-size: 20px 20px;
-      }
-      
-      /* Input style overrides for standard look */
-      input[type="number"]::-webkit-outer-spin-button,
-      input[type="number"]::-webkit-inner-spin-button {
-        -webkit-appearance: none;
-        margin: 0;
-      }
-      input[type="number"] {
-        -moz-appearance: textfield;
-      }
-    </style>
-  </head>
-  <body class="h-full flex flex-col font-sans bg-bg">
-
-    <!-- TOP NAV HEADER -->
-    <header class="h-14 border-b border-border bg-panel flex items-center justify-between px-4 z-40 shrink-0">
-      <div class="flex items-center space-x-2 min-w-0">
-        <span class="font-sans font-bold text-accent tracking-wide text-2xl shrink-0">NOWACTION</span>
-        <button id="btn-current-project" class="flex items-center space-x-1.5 px-2.5 py-1 bg-border hover:bg-[#303030] text-xs font-mono rounded text-text transition-colors max-w-[110px] md:max-w-[220px] cursor-pointer" title="Switch Project">
-          <i class="codicon codicon-folder text-[10px] text-textSec shrink-0"></i>
-          <span id="current-project-name" class="truncate">Loading...</span>
-        </button>
-        <span class="hidden lg:inline-block text-xs bg-border px-1.5 py-0.5 rounded text-textSec font-mono font-semibold uppercase">Mobile Spec</span>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b0b0c" />
+  <title>NOWACTION — Motion Website Builder</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/motion-editor.css" />
+  <script src="/vendor/jszip/jszip.min.js"></script>
+</head>
+<body>
+  <div id="app" class="na-app" aria-busy="true">
+    <header id="top-app-bar" class="na-topbar">
+      <button id="project-button" class="na-icon-btn" aria-label="Projects and document settings" title="Projects and document settings"></button>
+      <button id="project-title" class="na-project-title" aria-label="Rename project">Loading…</button>
+      <div id="top-status" class="na-top-status" aria-live="polite"></div>
+      <div id="normal-top-actions" class="na-top-actions">
+        <button id="preview-button" class="na-icon-btn" aria-label="Preview" title="Preview"></button>
+        <button id="export-button" class="na-icon-btn na-primary" aria-label="Export" title="Export"></button>
       </div>
-      
-      <!-- Center stats: zoom, coordinates -->
-      <div class="flex items-center space-x-3">
-        <button id="btn-reset-view" class="flex items-center space-x-1.5 px-2.5 py-1 bg-border hover:bg-[#303030] text-xs font-mono rounded text-text transition-colors" title="Reset View to 100%">
-          <span id="zoom-display">100%</span>
-          <i class="codicon codicon-screen-normal text-[10px] text-textSec"></i>
-        </button>
-      </div>
-
-      <!-- Action: AI Copilot & Export buttons -->
-      <div class="flex items-center space-x-2">
-        <button id="btn-ai-copilot-toggle" class="hidden md:flex items-center space-x-1.5 px-3 py-1.5 bg-accent/15 hover:bg-accent/25 border border-accent/40 text-accent text-xs font-semibold rounded-full transition-all duration-300 relative cursor-pointer" title="Toggle AI Copilot Sidebar">
-          <i class="codicon codicon-sparkle text-xs"></i>
-          <span>AI Copilot</span>
-        </button>
-
-        <button id="btn-preview-top" class="flex items-center justify-center w-9 h-9 bg-border hover:bg-[#303030] text-text rounded transition-colors" title="Preview">
-          <i class="codicon codicon-eye text-sm"></i>
-        </button>
-
-        <button id="btn-export-top" class="flex items-center justify-center w-9 h-9 bg-accent hover:bg-accent/90 text-white rounded transition-colors" title="Export">
-          <i class="codicon codicon-export text-sm"></i>
-        </button>
+      <div id="selection-top-actions" class="na-top-actions na-hidden">
+        <button id="group-button" class="na-icon-btn" aria-label="Group selected layers" title="Group"></button>
+        <button id="duplicate-button" class="na-icon-btn" aria-label="Duplicate selected layers" title="Duplicate"></button>
+        <button id="delete-button" class="na-icon-btn na-danger" aria-label="Delete selected layers" title="Delete"></button>
       </div>
     </header>
 
-    <!-- MAIN RESPONSIVE CONTAINER -->
-    <div class="flex-1 flex flex-col md:flex-row min-h-0 relative">
-      
-      <!-- DESKTOP LEFT PANEL: LAYERS -->
-      <aside class="hidden md:flex w-72 border-r border-border bg-panel flex-col min-h-0 shrink-0">
-        <div class="p-4 border-b border-border flex items-center justify-between">
-          <h2 class="text-xs font-mono font-bold text-textSec uppercase tracking-wider">Layers List</h2>
-          <span id="layers-count-desktop" class="text-xs font-mono text-textSec bg-border px-1.5 py-0.5 rounded">0</span>
-        </div>
-        <!-- Scrollable layer list container -->
-        <div id="layer-list-desktop" class="flex-1 overflow-y-auto p-2 space-y-1">
-          <!-- Rendered dynamically -->
-        </div>
-        <div class="p-4 border-t border-border bg-bg/50">
-          <p class="text-[10px] font-mono text-textSec leading-normal">
-            Drag canvas with 1 finger.<br>
-            Pinch to zoom with 2 fingers.<br>
-            Double-tap text to edit content.
-          </p>
-        </div>
-      </aside>
-
-      <!-- CANVAS VIEWPORT & TOOLBAR (CENTER) -->
-      <main class="flex-1 flex flex-col relative min-h-0 bg-bg">
-        
-         <!-- CANVAS VIEWPORT CONTAINER -->
-        <div id="canvas-viewport" class="flex-1 relative overflow-hidden outline-none cursor-grab active:cursor-grabbing" tabindex="0">
-          
-          <!-- TRANSFORMABLE CANVAS WORLD -->
-          <div id="canvas-world" class="absolute inset-0 canvas-grid transform-gpu origin-top-left pointer-events-none select-none">
-            <!-- Central origin visual indicator -->
-            <div class="absolute left-[-15px] top-0 w-[30px] h-px bg-border/50 pointer-events-none"></div>
-            <div class="absolute left-0 top-[-15px] w-px h-[30px] bg-border/50 pointer-events-none"></div>
-            <!-- Dynamic elements go here -->
+    <main class="na-main">
+      <section id="preview-stage" class="na-preview-stage" aria-label="Website preview">
+        <div id="preview-frame" class="na-preview-frame">
+          <div id="website-scroll-root" class="na-website-scroll-root">
+            <div id="website-document" class="na-website-document">
+              <div id="project-background" class="na-project-background"></div>
+              <div id="scene-root" class="na-scene-root"></div>
+            </div>
           </div>
-
-          <input type="file" id="canvas-image-file-input" accept="image/*" class="hidden" onchange="handleCanvasImageUpload(event)" />
+          <div id="preview-badge" class="na-preview-badge">390 × 844</div>
         </div>
+      </section>
 
-        <!-- FLOATING EDIT ACTIONS BAR -->
-        <div id="floating-edit-bar" class="absolute bottom-20 left-1/2 -translate-x-1/2 bg-panel/95 backdrop-blur-sm border border-border px-3 py-1.5 rounded-full flex items-center space-x-1.5 shadow-2xl z-30">
-          <button id="btn-duplicate-shape" onclick="duplicateSelected()" class="p-2 text-textSec hover:text-white hover:bg-border/40 rounded-full transition-colors flex items-center justify-center cursor-pointer" title="Duplicate">
-            <i class="codicon codicon-files text-xs"></i>
-          </button>
-          
-          <div class="w-px h-5 bg-border mx-1"></div>
-          
-          <button id="btn-group-shapes" onclick="groupSelectedShapes()" class="p-2 text-textSec hover:text-white hover:bg-border/40 rounded-full transition-colors flex items-center justify-center cursor-pointer" title="Group Selected">
-            <i class="codicon codicon-package text-xs"></i>
-          </button>
-          <button id="btn-ungroup-shapes" onclick="ungroupSelectedShapes()" class="p-2 text-textSec hover:text-white hover:bg-border/40 rounded-full transition-colors flex items-center justify-center cursor-pointer" title="Ungroup Selected">
-            <i class="codicon codicon-references text-xs"></i>
-          </button>
-          
-          <div class="w-px h-5 bg-border mx-1"></div>
-          
-          <button id="btn-delete-selected" onclick="deleteSelected()" class="p-2 text-textSec hover:text-red-500 hover:bg-red-500/10 rounded-full transition-colors flex items-center justify-center cursor-pointer" title="Delete Selected (Del)">
-            <i class="codicon codicon-trash text-xs"></i>
-          </button>
+      <section id="bottom-workspace" class="na-bottom-workspace">
+        <div id="transport-row" class="na-transport-row">
+          <button id="previous-marker-button" class="na-icon-btn" aria-label="Previous marker" title="Previous marker"></button>
+          <button id="play-button" class="na-icon-btn na-play" aria-label="Play" title="Play"></button>
+          <button id="next-marker-button" class="na-icon-btn" aria-label="Next marker" title="Next marker"></button>
+          <button id="progress-button" class="na-progress-value" aria-label="Current scroll progress">0%</button>
         </div>
+        <div id="context-root" class="na-context-root"></div>
+      </section>
+    </main>
 
-        <!-- FLOATING TOOLBAR -->
-        <div class="absolute bottom-4 left-1/2 -translate-x-1/2 bg-panel/95 backdrop-blur-sm border border-border px-2 py-1.5 rounded-full flex items-center space-x-1 shadow-2xl z-30">
-          <button id="tool-select" class="tool-btn p-2.5 rounded-full text-accent bg-accent/10 hover:text-white transition-colors" title="Select / Pan (S)">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" />
-              <path d="M13 13l6 6" />
-            </svg>
-          </button>
-          
-          <div class="w-px h-5 bg-border mx-1"></div>
-          
-          <button id="tool-rectangle" class="tool-btn p-2.5 rounded-full text-textSec hover:text-text transition-colors" title="Rectangle (R)">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="3" y="3" width="18" height="18" rx="2" />
-            </svg>
-          </button>
-          
-          <button id="tool-circle" class="tool-btn p-2.5 rounded-full text-textSec hover:text-text transition-colors" title="Circle (C)">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="9" />
-            </svg>
-          </button>
-          
-          <button id="tool-text" class="tool-btn p-2.5 rounded-full text-textSec hover:text-text transition-colors" title="Text (T)">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M4 7V4h16v3M12 4v16M9 20h6" />
-            </svg>
-          </button>
+    <input id="image-file-input" type="file" accept="image/*" hidden />
+  </div>
 
-          <button id="tool-image" class="tool-btn p-2.5 rounded-full text-textSec hover:text-text transition-colors" title="Image (I)">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="3" y="3" width="18" height="18" rx="2" />
-              <circle cx="8.5" cy="8.5" r="1.5" />
-              <polyline points="21 15 16 10 5 21" />
-            </svg>
-          </button>
-        </div>
+  <div id="toast" class="na-toast" role="status" aria-live="polite"></div>
 
-      </main>
-
-      <!-- DESKTOP RIGHT PANEL: PROPERTIES -->
-      <aside class="hidden md:flex w-80 border-l border-border bg-panel flex-col min-h-0 shrink-0 overflow-y-auto">
-        <div class="p-4 border-b border-border">
-          <h2 class="text-xs font-mono font-bold text-textSec uppercase tracking-wider">Properties</h2>
-        </div>
-        
-        <!-- Properties content container -->
-        <div id="properties-panel-desktop" class="p-4 space-y-4">
-          <!-- Rendered dynamically depending on selection -->
-        </div>
-      </aside>
-
-      <!-- DESKTOP RIGHT PANEL 2: AI COPILOT -->
-      <aside id="ai-chat-sidebar" class="hidden md:flex w-80 border-l border-border bg-panel flex-col min-h-0 shrink-0 relative">
-        <!-- AI Header -->
-        <div class="p-4 border-b border-border flex items-center justify-between bg-[#141416]">
-          <div class="flex items-center space-x-2">
-            <span class="text-xs font-mono font-bold text-accent uppercase tracking-wider">AI Copilot</span>
-            <span class="text-[9px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1 py-0.2 rounded font-mono">BYOK</span>
-          </div>
-          <div class="flex items-center space-x-1.5">
-            <button id="btn-ai-new-session" class="p-1.5 text-textSec hover:text-text hover:bg-border rounded transition-all cursor-pointer" title="New Chat Session">
-              <i class="codicon codicon-add text-sm"></i>
-            </button>
-            <button id="btn-ai-session-history" class="p-1.5 text-textSec hover:text-text hover:bg-border rounded transition-all cursor-pointer" title="Session History">
-              <i class="codicon codicon-history text-sm"></i>
-            </button>
-            <button id="btn-ai-settings-toggle" class="p-1.5 text-textSec hover:text-text hover:bg-border rounded transition-all cursor-pointer" title="AI Settings">
-              <i class="codicon codicon-gear text-sm"></i>
-            </button>
-            <button id="btn-ai-sidebar-close" class="p-1.5 text-textSec hover:text-text hover:bg-border rounded transition-all cursor-pointer" title="Hide Sidebar">
-              <i class="codicon codicon-close text-sm"></i>
-            </button>
+  <dialog id="project-dialog" class="na-dialog">
+    <form method="dialog" class="na-dialog-card">
+      <header class="na-dialog-header">
+        <h2>Project & Document</h2>
+        <button class="na-icon-btn" value="cancel" aria-label="Close" data-icon="close"></button>
+      </header>
+      <div class="na-dialog-body">
+        <div class="na-settings-section">
+          <label>Project</label>
+          <div class="na-project-picker-row">
+            <select id="project-select"></select>
+            <button id="new-project-button" type="button" class="na-icon-btn" aria-label="New project" title="New project"></button>
           </div>
         </div>
-
-        <!-- AI Settings View -->
-        <div id="ai-settings-panel" class="hidden border-b border-border bg-[#141416] p-4 space-y-3 shrink-0">
-          <div class="text-xs font-mono font-bold text-accent mb-1 uppercase tracking-wide">AI Provider API (BYOK)</div>
-          
-          <div>
-            <label class="text-[9px] font-mono text-textSec uppercase tracking-wider block mb-1">Provider</label>
-            <select id="ai-provider-select" class="bg-bg border border-border text-text font-mono text-xs rounded px-2.5 py-1.5 focus:outline-none focus:border-accent w-full">
-              <option value="gemini">Google Gemini (Default)</option>
-              <option value="openai">OpenAI-Compatible (v1)</option>
-              <option value="anthropic">Anthropic Claude</option>
+        <div class="na-settings-section">
+          <label for="project-name-input">Name</label>
+          <input id="project-name-input" type="text" maxlength="80" />
+        </div>
+        <div class="na-settings-grid">
+          <div class="na-settings-section">
+            <label for="background-color-input">Background</label>
+            <input id="background-color-input" type="color" />
+          </div>
+          <div class="na-settings-section">
+            <label for="height-mode-select">Height</label>
+            <select id="height-mode-select">
+              <option value="auto">Auto</option>
+              <option value="custom">Custom</option>
             </select>
           </div>
-
-          <div>
-            <label class="text-[9px] font-mono text-textSec uppercase tracking-wider block mb-1">API Key</label>
-            <input id="ai-api-key-input" type="password" placeholder="Leave blank if using server-side .env" class="bg-bg border border-border text-text font-mono text-xs rounded px-2.5 py-1.5 focus:outline-none focus:border-accent w-full" />
-            <span class="text-[8px] text-textSec font-mono mt-0.5 block leading-tight">Leave blank to use the API key from your server-side .env (e.g. Gemini).</span>
-          </div>
-
-          <div>
-            <label class="text-[9px] font-mono text-textSec uppercase tracking-wider block mb-1">Base URL (optional)</label>
-            <input id="ai-base-url-input" type="text" placeholder="https://api.openai.com/v1" class="bg-bg border border-border text-text font-mono text-xs rounded px-2.5 py-1.5 focus:outline-none focus:border-accent w-full" />
-            <span class="text-[8px] text-textSec font-mono mt-0.5 block leading-tight">Leave blank to use default routed proxy.</span>
-          </div>
-
-          <div>
-            <label class="text-[9px] font-mono text-textSec uppercase tracking-wider block mb-1">Model ID</label>
-            <input id="ai-model-input" type="text" placeholder="Leave blank to use server .env" class="bg-bg border border-border text-text font-mono text-xs rounded px-2.5 py-1.5 focus:outline-none focus:border-accent w-full" />
-          </div>
-
-          <button id="btn-save-ai-settings" class="w-full py-1.5 bg-accent hover:bg-accent/90 text-white font-mono text-xs rounded transition-colors font-semibold shadow-md cursor-pointer">
-            Save Configuration
-          </button>
         </div>
-
-        <!-- Scrollable Messages List -->
-        <div id="ai-messages-list" class="flex-1 overflow-y-auto p-4 space-y-3 flex flex-col min-h-0 bg-[#121214]">
-          <!-- Rendered dynamically -->
+        <div id="custom-height-row" class="na-settings-section na-hidden">
+          <label for="custom-height-input">Custom height (px)</label>
+          <input id="custom-height-input" type="number" min="844" step="1" />
         </div>
-
-        <!-- Chat Input Footer -->
-        <div class="p-3 border-t border-border bg-[#141416] shrink-0 flex flex-col space-y-2">
-          <!-- Image preview container -->
-          <div id="ai-chat-image-preview" class="hidden relative self-start p-1 bg-border/20 rounded border border-border">
-            <img id="ai-chat-image-preview-img" src="" class="h-10 w-10 object-cover rounded" />
-            <button onclick="clearAttachedImage()" class="absolute -top-1 -right-1 bg-red-500 hover:bg-red-600 rounded-full w-4 h-4 flex items-center justify-center text-white text-[9px] font-bold shadow" title="Remove attached image">&times;</button>
-          </div>
-
-          <div class="relative flex items-end">
-            <textarea id="ai-chat-input" rows="2" placeholder="Ask AI assistant..." class="bg-[#0B0B0C] border border-border text-text text-xs rounded-lg px-3 py-2 pr-16 focus:outline-none focus:border-accent w-full resize-none leading-relaxed" style="max-height: 120px;"></textarea>
-            <button id="btn-ai-attach-image" class="absolute right-9 bottom-2 p-1.5 text-textSec hover:text-text rounded-md transition-colors cursor-pointer" title="Attach image to AI prompt" onclick="document.getElementById('ai-image-uploader').click()">
-              <i class="codicon codicon-device-camera text-xs"></i>
-            </button>
-            <input id="ai-image-uploader" type="file" accept="image/*" class="hidden" onchange="handleAiImageAttachment(event)" />
-            <button id="btn-ai-send" class="absolute right-2 bottom-2 p-1.5 bg-accent hover:bg-accent/90 text-white rounded-md transition-colors cursor-pointer" title="Send message">
-              <i class="codicon codicon-send text-xs text-white"></i>
-            </button>
-          </div>
+        <div class="na-settings-section">
+          <label for="bottom-padding-input">Bottom padding (px)</label>
+          <input id="bottom-padding-input" type="number" min="0" step="1" />
         </div>
-      </aside>
-
-    </div>
-
-    <!-- MOBILE BOTTOM PANEL (COLLAPSIBLE TABS) -->
-    <div class="md:hidden border-t border-border bg-panel flex flex-col shrink-0 z-40">
-      
-      <!-- Tabs content: fixed height to preserve canvas space -->
-      <div class="h-64 overflow-y-auto border-b border-border bg-panel relative">
-        
-        <!-- Mobile Layers Panel -->
-        <div id="mobile-tab-layers" class="tab-panel p-4 space-y-1 h-full">
-          <div class="flex items-center justify-between mb-2">
-            <span class="text-xs font-mono font-bold text-textSec uppercase tracking-wider">Layers</span>
-            <span id="layers-count-mobile" class="text-xs font-mono text-textSec bg-border px-1.5 py-0.5 rounded">0</span>
-          </div>
-          <div id="layer-list-mobile" class="space-y-1">
-            <!-- Dynamic Mobile Layer List -->
-          </div>
-        </div>
-
-        <!-- Mobile Properties Panel -->
-        <div id="mobile-tab-properties" class="tab-panel hidden p-4 space-y-4 h-full">
-          <!-- Dynamic Mobile Properties -->
-        </div>
-
-        <!-- Mobile Export Panel -->
-        <div id="mobile-tab-export" class="tab-panel hidden p-4 space-y-2 h-full flex flex-col">
-          <div class="flex items-center justify-between">
-            <span class="text-xs font-mono font-bold text-textSec uppercase tracking-wider">Export Spec</span>
-            <div class="flex space-x-1">
-              <button id="btn-select-all-mobile" class="px-2 py-0.5 bg-border hover:bg-[#303030] text-[9px] font-mono rounded text-text transition-colors">
-                Select
-              </button>
-              <button id="btn-copy-mobile" class="px-2 py-0.5 bg-accent hover:bg-accent/90 text-[9px] font-mono rounded text-white transition-colors">
-                Copy
-              </button>
-            </div>
-          </div>
-          <textarea id="export-code-mobile" readonly class="flex-1 w-full p-1.5 bg-[#0a0a0a] border border-border text-textSec font-mono text-[9px] rounded resize-none focus:outline-none focus:border-accent" placeholder="Press Export inside App..."></textarea>
-          
-          <div class="grid grid-cols-2 gap-2 mt-1 shrink-0">
-            <button id="btn-download-html-mobile" class="py-1.5 bg-emerald-600 hover:bg-emerald-700 text-[10px] font-semibold rounded text-white flex items-center justify-center space-x-1">
-              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1M8 12l4 4m0 0l4-4m-4 4V4" />
-              </svg>
-              <span>Download HTML</span>
-            </button>
-            <button id="btn-download-zip-mobile" class="py-1.5 bg-amber-600 hover:bg-amber-700 text-[10px] font-semibold rounded text-white flex items-center justify-center space-x-1">
-              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
-              </svg>
-              <span>Download ZIP</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- Mobile AI Chat Panel -->
-        <div id="mobile-tab-ai" class="tab-panel hidden p-4 space-y-2 h-full flex flex-col bg-bg">
-          <div class="flex items-center justify-between mb-1 pb-1 border-b border-border/40 shrink-0">
-            <div class="flex items-center space-x-2">
-              <span class="text-xs font-mono font-bold text-accent uppercase tracking-wider">AI Copilot</span>
-              <span class="text-[9px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1 py-0.2 rounded font-mono">BYOK</span>
-            </div>
-            <button id="btn-ai-new-session-mobile" class="p-1 text-textSec hover:text-text rounded transition-all cursor-pointer" title="New Chat Session">
-              <i class="codicon codicon-add text-sm"></i>
-            </button>
-            <button id="btn-ai-session-history-mobile" class="p-1 text-textSec hover:text-text rounded transition-all cursor-pointer" title="Session History">
-              <i class="codicon codicon-history text-sm"></i>
-            </button>
-            <button id="btn-ai-settings-toggle-mobile" class="p-1 text-textSec hover:text-text rounded transition-all cursor-pointer" title="AI Settings">
-              <i class="codicon codicon-gear text-sm"></i>
-            </button>
-          </div>
-          
-          <!-- Shared Settings View (Collapsible) -->
-          <div id="ai-settings-panel-mobile" class="hidden bg-[#141416] border border-border/40 p-2.5 rounded space-y-2 shrink-0">
-            <div class="text-[10px] font-mono font-bold text-accent uppercase tracking-wide">AI Settings (BYOK)</div>
-            <div class="grid grid-cols-2 gap-2">
-              <div>
-                <label class="text-[8px] font-mono text-textSec uppercase block mb-0.5">Provider</label>
-                <select id="ai-provider-select-mobile" class="bg-bg border border-border text-text font-mono text-[10px] rounded px-1.5 py-1 focus:outline-none focus:border-accent w-full">
-                  <option value="gemini">Google Gemini (Default)</option>
-                  <option value="openai">OpenAI (v1)</option>
-                  <option value="anthropic">Anthropic</option>
-                </select>
-              </div>
-              <div>
-                <label class="text-[8px] font-mono text-textSec uppercase block mb-0.5">Model</label>
-                <input id="ai-model-input-mobile" type="text" placeholder="gemini-2.5-flash" class="bg-bg border border-border text-text font-mono text-[10px] rounded px-1.5 py-1 focus:outline-none focus:border-accent w-full" />
-              </div>
-            </div>
-            <div>
-              <label class="text-[8px] font-mono text-textSec uppercase block mb-0.5">API Key</label>
-              <input id="ai-api-key-input-mobile" type="password" placeholder="Leave blank if using server-side .env" class="bg-bg border border-border text-text font-mono text-[10px] rounded px-1.5 py-1 focus:outline-none focus:border-accent w-full" />
-            </div>
-            <div>
-              <label class="text-[8px] font-mono text-textSec uppercase block mb-0.5">Base URL (optional)</label>
-              <input id="ai-base-url-input-mobile" type="text" placeholder="https://..." class="bg-bg border border-border text-text font-mono text-[10px] rounded px-1.5 py-1 focus:outline-none focus:border-accent w-full" />
-            </div>
-            <button id="btn-save-ai-settings-mobile" class="w-full py-1 bg-accent hover:bg-accent/90 text-white font-mono text-[10px] rounded transition-colors font-semibold cursor-pointer">
-              Save Configuration
-            </button>
-          </div>
-
-          <!-- Mobile Message history -->
-          <div id="ai-messages-list-mobile" class="flex-1 overflow-y-auto p-2 space-y-2 flex flex-col min-h-0 bg-[#121214] rounded border border-border/40">
-            <!-- Rendered dynamically -->
-          </div>
-
-          <!-- Mobile Input area -->
-          <div class="flex flex-col shrink-0 pt-1 space-y-1.5 w-full">
-            <!-- Mobile Image preview container -->
-            <div id="ai-chat-image-preview-mobile" class="hidden relative self-start p-1 bg-border/20 rounded border border-border">
-              <img id="ai-chat-image-preview-img-mobile" src="" class="h-8 w-8 object-cover rounded" />
-              <button onclick="clearAttachedImageMobile()" class="absolute -top-1 -right-1 bg-red-500 hover:bg-red-600 rounded-full w-3.5 h-3.5 flex items-center justify-center text-white text-[8px] font-bold shadow" title="Remove attached image">&times;</button>
-            </div>
-            <div class="relative flex items-center w-full">
-              <input id="ai-chat-input-mobile" type="text" placeholder="Ask AI assistant..." class="bg-bg border border-border text-text text-[11px] rounded-lg px-2.5 py-1.5 pr-14 focus:outline-none focus:border-accent w-full leading-normal" />
-              <button id="btn-ai-attach-image-mobile" class="absolute right-7 p-1 text-textSec hover:text-text rounded transition-colors cursor-pointer" title="Attach image to AI prompt" onclick="document.getElementById('ai-image-uploader-mobile').click()">
-                <i class="codicon codicon-device-camera text-xs"></i>
-              </button>
-              <input id="ai-image-uploader-mobile" type="file" accept="image/*" class="hidden" onchange="handleAiImageAttachmentMobile(event)" />
-              <button id="btn-ai-send-mobile" class="absolute right-1.5 p-1 bg-accent hover:bg-accent/90 text-white rounded transition-colors cursor-pointer" title="Send message">
-                <i class="codicon codicon-send text-xs text-white"></i>
-              </button>
-            </div>
-          </div>
-        </div>
-
+        <p class="na-dialog-note">The built-in background automatically covers the whole website. A custom-sized background should be created as a normal shape layer.</p>
       </div>
+      <footer class="na-dialog-footer">
+        <a href="/legacy.html" class="na-secondary-link" title="Open the legacy editor and AI Copilot">Legacy / AI</a>
+        <button id="save-project-settings-button" type="button" class="na-button na-primary-button">Save</button>
+      </footer>
+    </form>
+  </dialog>
 
-      <!-- Mobile navigation Tab Bar -->
-      <div class="h-14 bg-panel flex border-t border-border/50 items-center justify-around">
-        <button id="btn-tab-layers" class="tab-btn flex-1 py-4 flex flex-col items-center justify-center text-accent">
-          <i class="codicon codicon-layers text-sm mb-1"></i>
-          <span class="text-[9px] font-mono uppercase tracking-wider font-semibold">Layers</span>
-        </button>
+  <dialog id="export-dialog" class="na-dialog na-code-dialog">
+    <form method="dialog" class="na-dialog-card na-code-card">
+      <header class="na-dialog-header">
+        <h2>Export</h2>
+        <button class="na-icon-btn" value="cancel" aria-label="Close" data-icon="close"></button>
+      </header>
+      <div id="export-performance" class="na-performance-report" aria-live="polite"></div>
+      <textarea id="export-code" class="na-code-area" readonly spellcheck="false"></textarea>
+      <footer class="na-dialog-footer na-export-actions">
+        <button id="copy-export-button" type="button" class="na-icon-btn" aria-label="Copy export code" title="Copy"></button>
+        <button id="download-html-button" type="button" class="na-icon-btn" aria-label="Download HTML" title="Download HTML"></button>
+        <button id="download-zip-button" type="button" class="na-icon-btn na-primary" aria-label="Download ZIP" title="Download ZIP"></button>
+      </footer>
+    </form>
+  </dialog>
 
-        <button id="btn-tab-properties" class="tab-btn flex-1 py-4 flex flex-col items-center justify-center text-textSec">
-          <i class="codicon codicon-gear text-sm mb-1"></i>
-          <span class="text-[9px] font-mono uppercase tracking-wider font-semibold">Properties</span>
-        </button>
+  <dialog id="confirm-dialog" class="na-dialog">
+    <form method="dialog" class="na-dialog-card na-confirm-card">
+      <header class="na-dialog-header"><h2 id="confirm-title">Confirm</h2></header>
+      <div id="confirm-message" class="na-dialog-body"></div>
+      <footer class="na-dialog-footer">
+        <button value="cancel" class="na-button">Cancel</button>
+        <button id="confirm-ok-button" value="default" class="na-button na-primary-button">Continue</button>
+      </footer>
+    </form>
+  </dialog>
 
-        <button id="btn-tab-export" class="tab-btn flex-1 py-4 flex flex-col items-center justify-center text-textSec">
-          <i class="codicon codicon-code text-sm mb-1"></i>
-          <span class="text-[9px] font-mono uppercase tracking-wider font-semibold">Export Code</span>
-        </button>
-
-        <button id="btn-tab-ai" class="tab-btn flex-1 py-4 flex flex-col items-center justify-center text-textSec">
-          <i class="codicon codicon-sparkle text-sm mb-1"></i>
-          <span class="text-[9px] font-mono uppercase tracking-wider font-semibold">AI Copilot</span>
-        </button>
-      </div>
-
-    </div>
-
-    <!-- EXPORT MODAL (FOR DESKTOP / TABLET OVERLAY) -->
-    <div id="export-modal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div class="bg-panel border border-border w-full max-w-2xl rounded-lg shadow-2xl flex flex-col max-h-[80vh]">
-        <div class="p-4 border-b border-border flex items-center justify-between">
-          <h3 class="text-xs font-mono font-bold text-accent uppercase tracking-wider">Export Spec (HTML/CSS)</h3>
-          <button id="btn-close-modal" class="p-1 text-textSec hover:text-text rounded transition-colors">
-            <i class="codicon codicon-close text-base"></i>
-          </button>
-        </div>
-        <div class="p-4 flex-1 flex flex-col min-h-0 space-y-3">
-          <p class="text-xs text-textSec">Copy the self-contained HTML element code block to apply onto other projects or spec guidelines:</p>
-          <textarea id="export-code-desktop" readonly class="flex-1 w-full p-3 bg-[#0a0a0a] border border-border text-[#a3a3a3] font-mono text-xs rounded resize-none focus:outline-none focus:border-accent" rows="10"></textarea>
-          
-          <div class="grid grid-cols-2 gap-3 pt-1">
-            <button id="btn-copy-desktop" class="py-2.5 bg-accent hover:bg-accent/90 text-xs font-semibold rounded text-white transition-all flex items-center justify-center space-x-1.5">
-              <i class="codicon codicon-copy text-sm"></i>
-              <span>Copy Code</span>
-            </button>
-            <button id="btn-select-all-desktop" class="py-2.5 bg-border hover:bg-[#303030] text-xs font-semibold rounded text-text transition-all flex items-center justify-center space-x-1.5">
-              <span>Select All</span>
-            </button>
-          </div>
-
-          <div class="border-t border-border/40 my-1"></div>
-
-          <div class="grid grid-cols-2 gap-3">
-            <button id="btn-download-html-desktop" class="py-2.5 bg-emerald-600 hover:bg-emerald-700 text-xs font-semibold rounded text-white transition-all flex items-center justify-center space-x-1.5">
-              <i class="codicon codicon-cloud-download text-sm"></i>
-              <span>Download .HTML File</span>
-            </button>
-            <button id="btn-download-zip-desktop" class="py-2.5 bg-amber-600 hover:bg-amber-700 text-xs font-semibold rounded text-white transition-all flex items-center justify-center space-x-1.5" title="Export as ZIP with separate component files">
-              <i class="codicon codicon-file-zip text-sm"></i>
-              <span>Download separate .ZIP</span>
-            </button>
-          </div>
-
-          <div class="border-t border-border/40 my-1"></div>
-
-          <div class="grid grid-cols-2 gap-3">
-            <button id="btn-export-project" class="py-2.5 bg-indigo-600 hover:bg-indigo-700 text-xs font-semibold rounded text-white transition-all flex items-center justify-center space-x-1.5" title="Export entire layout and chat sessions as JSON backup file">
-              <i class="codicon codicon-archive text-sm"></i>
-              <span>Backup Project (.json)</span>
-            </button>
-            <div class="relative">
-              <button onclick="document.getElementById('input-import-project').click()" class="w-full py-2.5 bg-zinc-700 hover:bg-zinc-600 text-xs font-semibold rounded text-text transition-all flex items-center justify-center space-x-1.5 cursor-pointer">
-                <i class="codicon codicon-cloud-upload text-sm"></i>
-                <span>Import Project (.json)</span>
-              </button>
-              <input type="file" id="input-import-project" class="hidden" accept=".json" onchange="importProjectFile(event)" />
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- PROJECTS MODAL (Phase 2) -->
-    <div id="projects-modal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div class="bg-panel border border-border w-full max-w-md rounded-lg shadow-2xl flex flex-col max-h-[80vh]">
-        <div class="p-4 border-b border-border flex items-center justify-between">
-          <h3 class="text-xs font-mono font-bold text-accent uppercase tracking-wider">Projects</h3>
-          <button id="btn-close-projects-modal" class="p-1 text-textSec hover:text-text rounded transition-colors">
-            <i class="codicon codicon-close text-base"></i>
-          </button>
-        </div>
-        <div class="p-4 flex-1 flex flex-col min-h-0 space-y-3">
-          <button id="btn-new-project" class="w-full py-2.5 bg-accent hover:bg-accent/90 text-xs font-semibold rounded text-white transition-all flex items-center justify-center space-x-1.5">
-            <i class="codicon codicon-add text-sm"></i>
-            <span>New Project</span>
-          </button>
-
-          <input id="projects-search-input" type="text" placeholder="Search projects..." class="w-full px-3 py-2 bg-[#0a0a0a] border border-border text-text font-mono text-xs rounded focus:outline-none focus:border-accent" />
-
-          <div id="projects-list" class="flex-1 overflow-y-auto space-y-1.5 min-h-[120px]">
-            <!-- Rendered dynamically -->
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- SESSION HISTORY MODAL (Phase 4) -->
-    <div id="sessions-modal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div class="bg-panel border border-border w-full max-w-md rounded-lg shadow-2xl flex flex-col max-h-[80vh]">
-        <div class="p-4 border-b border-border flex items-center justify-between">
-          <h3 class="text-xs font-mono font-bold text-accent uppercase tracking-wider">Session History</h3>
-          <button id="btn-close-sessions-modal" class="p-1 text-textSec hover:text-text rounded transition-colors">
-            <i class="codicon codicon-close text-base"></i>
-          </button>
-        </div>
-        <div class="p-4 flex-1 flex flex-col min-h-0 space-y-3">
-          <p class="text-[10px] text-textSec font-mono">Reopening an older session makes it active again — nothing is deleted.</p>
-          <div id="sessions-list" class="flex-1 overflow-y-auto space-y-1.5 min-h-[120px]">
-            <!-- Rendered dynamically -->
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- MAIN APP SCRIPT -->
-    <script src="/js/state-and-projects.js"></script>
-    <script src="/js/events-and-export.js"></script>
-    <script src="/js/shapes-and-interaction.js"></script>
-    <script src="/js/render-and-panels.js"></script>
-    <script src="/js/ai-copilot.js"></script>
-    <script src="/js/app-init.js"></script>
-
-    <!-- Scroll-driven animation timeline drawer (populated by scroll-anim-ui.js) -->
-    <div id="anim-timeline-drawer" class="hidden fixed bottom-0 left-0 right-0 z-50"></div>
-    <script src="/js/scroll-anim-runtime.js"></script>
-    <script src="/js/scroll-anim-ui.js"></script>
-  </body>
+  <script src="/js/motion-app.js"></script>
+</body>
 </html>
-

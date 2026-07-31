@@ -6,11 +6,11 @@
   "scripts": {
     "dev": "node server.js",
     "start": "node server.js",
-    "lint": "echo 'No lint needed for vanilla JS'"
+    "lint": "echo 'No lint needed for vanilla JS'",
+    "check": "node --check server.js && node --check public/js/motion-app.js && node --check public/js/motion-export-runtime.js"
   },
   "dependencies": {
     "express": "^4.21.2",
     "dotenv": "^17.2.3"
   }
 }
-
