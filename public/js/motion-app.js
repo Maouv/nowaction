@@ -1161,7 +1161,7 @@
     start = clamp(start, 0, 1 - span);
     state.timeline.zoom = zoom;
     state.timeline.visibleStart = start;
-    renderContext();
+    renderContext(false);
   }
 
   function ensureProgressVisible(progress, padding = .06) {
@@ -1208,6 +1208,7 @@
     $('#add-fab')?.addEventListener('click', () => pushScreen({ screen: 'add-root' }));
     bindPropertyDock();
     renderTimelineRuler();
+    bindRulerGestures();
     renderTimelineRows();
   }
 
@@ -1221,7 +1222,6 @@
       ticks.push(`<div class="na-ruler-tick" style="left:${i * 25}%"></div><div class="na-ruler-label" style="left:${i * 25}%">${formatPct(progress)}</div>`);
     }
     dom.timelineRuler.innerHTML = `${ticks.join('')}<div id="ruler-playhead" class="na-playhead-line"></div><div id="ruler-playhead-head" class="na-playhead-head"></div>`;
-    bindRulerGestures();
     updateTimelinePlayhead();
   }
 
