@@ -2,7 +2,7 @@
   "id": "legacy-default",
   "name": "My First Project",
   "createdAt": "2026-07-18T08:39:55.527Z",
-  "updatedAt": "2026-08-01T13:31:51.113Z",
+  "updatedAt": "2026-08-01T14:13:11.038Z",
   "shapes": [
     {
       "id": "sh_1784945372347_mcca",
@@ -256,7 +256,7 @@
           "amount": 110
         }
       ],
-      "locked": true,
+      "locked": false,
       "groupId": null,
       "animation": {
         "enabled": true,
@@ -295,7 +295,10 @@
     "width": 1920,
     "height": 1080,
     "gridSnap": 1,
-    "showFrame": true
+    "showFrame": true,
+    "heightMode": "auto",
+    "customHeight": 2400,
+    "bottomPadding": 160
   },
   "background": {
     "color": "#ffffff",
