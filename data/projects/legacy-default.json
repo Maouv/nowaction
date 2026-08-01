@@ -2,7 +2,7 @@
   "id": "legacy-default",
   "name": "My First Project",
   "createdAt": "2026-07-18T08:39:55.527Z",
-  "updatedAt": "2026-07-29T12:15:23.954Z",
+  "updatedAt": "2026-08-01T03:58:01.858Z",
   "shapes": [
     {
       "id": "sh_1784945372347_mcca",
@@ -22,7 +22,7 @@
       "y": -348,
       "animation": {
         "enabled": false,
-        "mode": "element",
+        "mode": "global",
         "trigger": {
           "startVH": 100,
           "endVH": 0
@@ -37,7 +37,16 @@
             "h": 80,
             "opacity": 100,
             "rotation": 0,
-            "blur": 0
+            "blur": 0,
+            "id": "kf_ms9uca8z_t729k",
+            "at": 0,
+            "easingToNext": {
+              "type": "cubic-bezier",
+              "x1": 0,
+              "y1": 0,
+              "x2": 1,
+              "y2": 1
+            }
           },
           {
             "p": 13,
@@ -48,7 +57,16 @@
             "h": 80,
             "opacity": 100,
             "rotation": 0,
-            "blur": 0
+            "blur": 0,
+            "id": "kf_ms9uca8z_c043y",
+            "at": 0.13,
+            "easingToNext": {
+              "type": "cubic-bezier",
+              "x1": 0,
+              "y1": 0,
+              "x2": 1,
+              "y2": 1
+            }
           },
           {
             "p": 100,
@@ -59,10 +77,39 @@
             "h": 80,
             "opacity": 100,
             "rotation": 0,
-            "blur": 0
+            "blur": 0,
+            "id": "kf_ms9uca8z_sfbro",
+            "at": 1,
+            "easingToNext": {
+              "type": "cubic-bezier",
+              "x1": 0.25,
+              "y1": 0.1,
+              "x2": 0.25,
+              "y2": 1
+            }
           }
-        ]
-      }
+        ],
+        "rangeStart": 0,
+        "rangeEnd": 100
+      },
+      "fillOpacity": 100,
+      "strokeOpacity": 100,
+      "brightness": 100,
+      "contrast": 100,
+      "saturation": 100,
+      "scaleX": 1,
+      "scaleY": 1,
+      "blendMode": "normal",
+      "shadow": {
+        "enabled": false,
+        "color": "#000000",
+        "opacity": 35,
+        "offsetX": 0,
+        "offsetY": 8,
+        "blur": 24,
+        "spread": 0
+      },
+      "effects": []
     },
     {
       "id": "sh_1784947904079_43ih",
@@ -82,7 +129,7 @@
       "y": 227,
       "animation": {
         "enabled": false,
-        "mode": "element",
+        "mode": "global",
         "trigger": {
           "startVH": 100,
           "endVH": 0
@@ -99,7 +146,16 @@
             "h": 80,
             "opacity": 100,
             "rotation": 0,
-            "blur": 0
+            "blur": 0,
+            "id": "kf_ms9uca8z_p3232",
+            "at": 0.16225266887889378,
+            "easingToNext": {
+              "type": "cubic-bezier",
+              "x1": 0,
+              "y1": 0,
+              "x2": 1,
+              "y2": 1
+            }
           },
           {
             "p": 30,
@@ -115,10 +171,50 @@
             "h": 800,
             "opacity": 100,
             "blur": 0,
-            "rotation": 0
+            "rotation": 0,
+            "id": "kf_ms9uca8z_7vdk8",
+            "at": 0.3,
+            "easingToNext": {
+              "type": "cubic-bezier",
+              "x1": 0.42,
+              "y1": 0,
+              "x2": 0.58,
+              "y2": 1
+            }
+          },
+          {
+            "id": "kf_ms9ucg9b_5cv97",
+            "at": 0.34977168880255927,
+            "easingToNext": {
+              "type": "cubic-bezier",
+              "x1": 0,
+              "y1": 0,
+              "x2": 1,
+              "y2": 1
+            },
+            "x": 55.59,
+            "y": 50.19
           }
         ]
-      }
+      },
+      "fillOpacity": 100,
+      "strokeOpacity": 100,
+      "brightness": 100,
+      "contrast": 100,
+      "saturation": 100,
+      "scaleX": 1,
+      "scaleY": 1,
+      "blendMode": "normal",
+      "shadow": {
+        "enabled": false,
+        "color": "#000000",
+        "opacity": 35,
+        "offsetX": 0,
+        "offsetY": 8,
+        "blur": 24,
+        "spread": 0
+      },
+      "effects": []
     }
   ],
   "shapeCounter": {
@@ -133,5 +229,24 @@
     "baseUrl": "",
     "model": ""
   },
-  "activeSessionId": "3ffa7ce3-def5-4029-98f4-f4dfc76d7cef"
+  "activeSessionId": "3ffa7ce3-def5-4029-98f4-f4dfc76d7cef",
+  "schemaVersion": 3,
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "canvasConfig": {
+    "preset": "mobile",
+    "width": 390,
+    "height": 2400,
+    "gridSnap": 1,
+    "showFrame": true,
+    "heightMode": "auto",
+    "customHeight": 2400,
+    "bottomPadding": 160
+  },
+  "background": {
+    "color": "#ffffff",
+    "transparent": false
+  }
 }
