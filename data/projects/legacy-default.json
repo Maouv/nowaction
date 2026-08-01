@@ -2,7 +2,7 @@
   "id": "legacy-default",
   "name": "My First Project",
   "createdAt": "2026-07-18T08:39:55.527Z",
-  "updatedAt": "2026-07-27T01:05:09.957Z",
+  "updatedAt": "2026-07-29T12:15:23.954Z",
   "shapes": [
     {
       "id": "sh_1784945372347_mcca",
@@ -78,8 +78,8 @@
       "locked": false,
       "w": 172,
       "h": 139,
-      "x": -149,
-      "y": -342,
+      "x": 244,
+      "y": 227,
       "animation": {
         "enabled": false,
         "mode": "element",
@@ -93,8 +93,8 @@
           {
             "p": 10,
             "ease": "linear",
-            "x": -25,
-            "y": 2,
+            "x": 368,
+            "y": 571,
             "w": 120,
             "h": 80,
             "opacity": 100,
@@ -109,8 +109,8 @@
               0.58,
               1
             ],
-            "x": -25,
-            "y": 2,
+            "x": 368,
+            "y": 571,
             "w": 120,
             "h": 800,
             "opacity": 100,
