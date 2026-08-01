@@ -2,7 +2,7 @@
   "id": "legacy-default",
   "name": "My First Project",
   "createdAt": "2026-07-18T08:39:55.527Z",
-  "updatedAt": "2026-08-01T03:58:01.858Z",
+  "updatedAt": "2026-08-01T13:31:51.113Z",
   "shapes": [
     {
       "id": "sh_1784945372347_mcca",
@@ -148,7 +148,7 @@
             "rotation": 0,
             "blur": 0,
             "id": "kf_ms9uca8z_p3232",
-            "at": 0.16225266887889378,
+            "at": 0.17442922601270125,
             "easingToNext": {
               "type": "cubic-bezier",
               "x1": 0,
@@ -192,8 +192,8 @@
               "x2": 1,
               "y2": 1
             },
-            "x": 55.59,
-            "y": 50.19
+            "x": 94.82,
+            "y": -215.43
           }
         ]
       },
@@ -215,12 +215,67 @@
         "spread": 0
       },
       "effects": []
+    },
+    {
+      "id": "sh_ms9x0c0i_ejx1z",
+      "type": "text",
+      "name": "Text 3",
+      "x": 75,
+      "y": 389.88,
+      "w": 186.66671752929688,
+      "h": 332.40579986572266,
+      "fill": "transparent",
+      "fillOpacity": 100,
+      "strokeWidth": 0,
+      "strokeColor": "#111827",
+      "strokeOpacity": 100,
+      "borderRadius": 0,
+      "blur": 0,
+      "brightness": 100,
+      "contrast": 100,
+      "saturation": 100,
+      "opacity": 100,
+      "rotation": 0,
+      "scaleX": 1,
+      "scaleY": 1,
+      "blendMode": "normal",
+      "shadow": {
+        "enabled": false,
+        "color": "#000000",
+        "opacity": 35,
+        "offsetX": 0,
+        "offsetY": 8,
+        "blur": 24,
+        "spread": 0
+      },
+      "effects": [
+        {
+          "id": "fx_ms9x10t6_ysji7",
+          "type": "contrast",
+          "enabled": true,
+          "amount": 110
+        }
+      ],
+      "locked": true,
+      "groupId": null,
+      "animation": {
+        "enabled": true,
+        "mode": "global",
+        "rangeStart": 0,
+        "rangeEnd": 100,
+        "keyframes": []
+      },
+      "text": "Text",
+      "textColor": "#111827",
+      "fontSize": 28,
+      "fontFamily": "Inter, sans-serif",
+      "fontWeight": 600
     }
   ],
   "shapeCounter": {
     "rectangle": 7,
     "circle": 2,
-    "text": 2
+    "text": 3
   },
   "groups": {},
   "aiSettings": {
@@ -236,14 +291,11 @@
     "height": 844
   },
   "canvasConfig": {
-    "preset": "mobile",
-    "width": 390,
-    "height": 2400,
+    "preset": "custom",
+    "width": 1920,
+    "height": 1080,
     "gridSnap": 1,
-    "showFrame": true,
-    "heightMode": "auto",
-    "customHeight": 2400,
-    "bottomPadding": 160
+    "showFrame": true
   },
   "background": {
     "color": "#ffffff",
