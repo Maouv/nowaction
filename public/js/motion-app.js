@@ -1262,11 +1262,13 @@
           <div class="na-layer-cell ${selected ? 'na-row-selected' : ''}">
             <button class="na-reorder-grip" data-reorder-id="${escapeAttr(shape.id)}" aria-label="Reorder ${escapeAttr(shape.name)}">${icon('grip')}</button>
             <span class="na-layer-type-icon">${icon(layerTypeIconName(shape))}</span>
-            <span class="na-layer-name">${escapeHtml(shape.name)}</span>
-            <button class="na-row-action" data-lock-id="${escapeAttr(shape.id)}" aria-label="${shape.locked ? 'Unlock' : 'Lock'} ${escapeAttr(shape.name)}">${icon(shape.locked ? 'lock' : 'unlock')}</button>
+            <!-- TODO(lock-ui): lock toggle temporarily removed from UI only; toggleLock() and
+                 shape.locked remain fully functional. Re-introduce the trigger somewhere else
+                 (placement TBD) — do not delete toggleLock or the data-lock-id wiring below. -->
           </div>
           <div class="na-track-cell" data-track-layer-id="${escapeAttr(shape.id)}">
             <div class="na-bar ${selected ? 'na-bar-selected' : ''}" data-bar-id="${escapeAttr(shape.id)}" style="left:${visibleLeft}%;width:${barWidth}%">
+              <span class="na-bar-label">${escapeHtml(shape.name)}</span>
               ${selected ? `<span class="na-bar-handle start" data-trim="start" data-layer-id="${escapeAttr(shape.id)}"></span><span class="na-bar-handle end" data-trim="end" data-layer-id="${escapeAttr(shape.id)}"></span>` : ''}
               ${keyframes}
             </div>

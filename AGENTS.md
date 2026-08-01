@@ -34,3 +34,7 @@ npm run check      # syntax-check ONLY: server.js, public/js/motion-app.js, publ
 - Keyframes use normalized global `at` positions (0–1). Legacy projects with `p` positions are migrated in the browser on load.
 - The selected-layer `</>` Code action runs through the same export compiler as full export — never copy editor DOM into generated code.
 - Grouping uses flat `groupId` semantics (deliberate; structural nested groups are backlog).
+
+## Write style
+- no docstring
+- preffer minimal coding but works

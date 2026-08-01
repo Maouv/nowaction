@@ -257,7 +257,10 @@ button { -webkit-tap-highlight-color: transparent; }
 }
 .na-layer-cell {
   display: grid;
-  grid-template-columns: 28px 28px minmax(0,1fr) 28px;
+  /* Only the reorder grip + type icon live here now. Name moved into .na-bar-label
+     (inside the track's bar). Lock trigger removed from UI only — see TODO(lock-ui)
+     in motion-app.js renderTimelineRows(); .na-row-action styling kept below for reuse. */
+  grid-template-columns: 28px 28px;
   align-items: center;
   gap: 2px;
   border-right: 1px solid var(--border);
@@ -274,7 +277,6 @@ button { -webkit-tap-highlight-color: transparent; }
 .na-reorder-grip svg, .na-row-action svg { width: 18px; height: 18px; }
 .na-layer-type-icon { width: 24px; height: 24px; display: grid; place-items: center; color: var(--muted); }
 .na-layer-type-icon svg { width: 19px; height: 19px; }
-.na-layer-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 500 11px/1 JetBrains Mono, monospace; }
 .na-track-cell { position: relative; overflow: hidden; touch-action: pan-y; background: var(--panel); }
 .na-bar {
   position: absolute;
@@ -286,6 +288,21 @@ button { -webkit-tap-highlight-color: transparent; }
   box-shadow: inset 0 1px rgba(255,255,255,.12);
   touch-action: none;
   min-width: 2px;
+}
+.na-bar-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font: 500 11px/1 JetBrains Mono, monospace;
+  color: #fff;
+  text-shadow: 0 1px 1px rgba(0,0,0,.35);
+  pointer-events: none;
+  z-index: 2;
 }
 .na-bar.na-bar-selected { outline: 2px solid white; outline-offset: 1px; }
 .na-bar-handle {
@@ -546,3 +563,4 @@ button { -webkit-tap-highlight-color: transparent; }
 .na-effect-value { margin-left:auto; color:var(--muted); font:500 10px/1 JetBrains Mono,monospace; }
 .na-toggle-large { width:100%; height:42px; border:1px solid var(--border); border-radius:12px; background:var(--panel-2); }
 .na-toggle-large.active { color:#9ec5ff; border-color:var(--accent); background:rgba(59,130,246,.18); }
+
