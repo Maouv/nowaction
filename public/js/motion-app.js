@@ -1347,35 +1347,43 @@
     if (!ruler) return;
     const pointers = new Map();
     let gesture = null;
+    let pending = null;
+    let pendingTimer = 0;
+    const commitScrub = () => {
+      gesture = { type: 'scrub' };
+      setProgress(timelineClientXToProgress([...pointers.values()][0].x, ruler), 'timeline-scrub');
+    };
+    const commitPinch = () => {
+      const pair = [...pointers.values()];
+      const rect = ruler.getBoundingClientRect();
+      const mid = (pair[0].x + pair[1].x) / 2;
+      const dist = Math.abs(pair[0].x - pair[1].x);
+      gesture = {
+        type: 'pinch',
+        startDistance: Math.max(1, dist),
+        startZoom: state.timeline.zoom,
+        anchorProgress: timelineClientXToProgress(mid, ruler),
+        anchorRatio: clamp01((mid - rect.left) / rect.width)
+      };
+    };
     ruler.addEventListener('pointerdown', (event) => {
       ruler.setPointerCapture(event.pointerId);
       pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
       if (pointers.size === 1) {
         stopPlayback();
-        gesture = { type: 'scrub' };
-        setProgress(timelineClientXToProgress(event.clientX, ruler), 'timeline-scrub');
-      } else if (pointers.size === 2) {
-        const pair = [...pointers.values()];
-        const rect = ruler.getBoundingClientRect();
-        const midpoint = (pair[0].x + pair[1].x) / 2;
-        const distance = Math.abs(pair[0].x - pair[1].x);
-        const anchorRatio = clamp01((midpoint - rect.left) / rect.width);
-        gesture = {
-          type: 'pinch',
-          startDistance: Math.max(1, distance),
-          startZoom: state.timeline.zoom,
-          anchorProgress: timelineClientXToProgress(midpoint, ruler),
-          anchorRatio
-        };
+        pending = { x: event.clientX };
+        pendingTimer = setTimeout(() => { if (pending && pointers.size === 1) { pending = null; commitScrub(); } }, 100);
+      } else if (pointers.size === 2 && pending) {
+        clearTimeout(pendingTimer); pending = null; commitPinch();
       }
     });
     ruler.addEventListener('pointermove', (event) => {
       if (!pointers.has(event.pointerId)) return;
       pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      if (pending && pointers.size === 1 && Math.abs(event.clientX - pending.x) > 8) { clearTimeout(pendingTimer); pending = null; commitScrub(); }
       if (gesture?.type === 'pinch' && pointers.size >= 2) {
         const pair = [...pointers.values()];
-        const distance = Math.abs(pair[0].x - pair[1].x);
-        const zoom = gesture.startZoom * (distance / gesture.startDistance);
+        const zoom = gesture.startZoom * (Math.abs(pair[0].x - pair[1].x) / gesture.startDistance);
         setTimelineZoom(zoom, gesture.anchorProgress, gesture.anchorRatio);
       } else if (gesture?.type === 'scrub' && pointers.size === 1) {
         setProgress(timelineClientXToProgress(event.clientX, ruler), 'timeline-scrub');
@@ -1383,7 +1391,7 @@
     });
     const end = (event) => {
       pointers.delete(event.pointerId);
-      if (pointers.size === 0) gesture = null;
+      if (pointers.size === 0) { clearTimeout(pendingTimer); pending = null; gesture = null; }
     };
     ruler.addEventListener('pointerup', end);
     ruler.addEventListener('pointercancel', end);
