@@ -13,11 +13,11 @@
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --topbar-h: 52px;
-  --bottom-h: 220px;
+  --bottom-h: 320px;
   --transport-h: 48px;
   --ruler-h: 28px;
   --row-h: 48px;
-  --layer-col-w: clamp(104px, 30vw, 120px);
+  --layer-col-w: clamp(72px, 20vw, 84px);
   --touch: 48px;
 }
 
@@ -532,7 +532,7 @@ button { -webkit-tap-highlight-color: transparent; }
 .na-toast.show { opacity:1; transform:translate(-50%,0); }
 
 @media (min-width: 760px) {
-  :root { --bottom-h: 260px; --layer-col-w: 150px; }
+  :root { --bottom-h: 280px; --layer-col-w: 84px; }
   .na-main { max-width: 1180px; width:100%; margin:0 auto; border-left:1px solid var(--border); border-right:1px solid var(--border); }
   .na-preview-frame { border-radius:22px; }
   .na-context-dock { justify-content:center; gap:8px; }
