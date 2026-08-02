@@ -1164,13 +1164,31 @@
     const zoom = clamp(nextZoom, 1, 16);
     const span = 1 / zoom;
     state.timeline.zoom = zoom;
-    state.timeline.visibleStart = anchorProgress - anchorRatio * span;
+    state.timeline.visibleStart = clampVisibleStart(anchorProgress - anchorRatio * span);
     renderContext(false);
+  }
+
+  function getContentBounds() {
+    if (!state.project.shapes.length) return { min: 0, max: 1 };
+    let min = Infinity;
+    let max = -Infinity;
+    state.project.shapes.forEach((shape) => {
+      const anim = ensureAnimation(shape);
+      min = Math.min(min, Number(anim.rangeStart) / 100);
+      max = Math.max(max, Number(anim.rangeEnd) / 100);
+    });
+    return { min: clamp01(min), max: clamp01(max) };
+  }
+
+  function clampVisibleStart(start) {
+    const b = getContentBounds();
+    const span = 1 / state.timeline.zoom;
+    return clamp(start, b.min, Math.max(b.min, b.max - span));
   }
 
   function recenterTimelineWindow(progress) {
     const span = 1 / state.timeline.zoom;
-    state.timeline.visibleStart = progress - span / 2;
+    state.timeline.visibleStart = clampVisibleStart(progress - span / 2);
   }
 
   function layerTypeIconName(shape) {
@@ -1384,7 +1402,7 @@
         const span = 1 / state.timeline.zoom;
         const dx = event.clientX - gesture.lastX;
         gesture.lastX = event.clientX;
-        state.timeline.visibleStart -= (dx / rect.width) * span;
+        state.timeline.visibleStart = clampVisibleStart(state.timeline.visibleStart - (dx / rect.width) * span);
         const derivedProgress = clamp01(state.timeline.visibleStart + span / 2);
         setProgress(derivedProgress, 'timeline-scrub');
         renderTimelineRuler();
