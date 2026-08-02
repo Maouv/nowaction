@@ -1183,7 +1183,7 @@
   function clampVisibleStart(start) {
     const b = getContentBounds();
     const span = 1 / state.timeline.zoom;
-    return clamp(start, b.min, Math.max(b.min, b.max - span));
+    return clamp(start, b.min - span / 2, b.max - span / 2);
   }
 
   function recenterTimelineWindow(progress) {
@@ -1264,9 +1264,7 @@
       const left = timelineProgressToPercent(Math.min(start, end));
       const right = timelineProgressToPercent(Math.max(start, end));
       if (right < -5 || left > 105) continue;
-      const visibleLeft = clamp(left, -10, 110);
-      const visibleRight = clamp(right, -10, 110);
-      const barWidth = Math.max(0.5, visibleRight - visibleLeft);
+      const barWidth = Math.max(0.5, right - left);
       const lo = Math.min(start, end);
       const hi = Math.max(start, end);
       const keyframes = anim.keyframes.filter(keyframeHasVisualProperties).map((kf) => {
@@ -1285,7 +1283,7 @@
                  (placement TBD) — do not delete toggleLock or the data-lock-id wiring below. -->
           </div>
           <div class="na-track-cell" data-track-layer-id="${escapeAttr(shape.id)}">
-            <div class="na-bar ${selected ? 'na-bar-selected' : ''}" data-bar-id="${escapeAttr(shape.id)}" style="left:${visibleLeft}%;width:${barWidth}%">
+            <div class="na-bar ${selected ? 'na-bar-selected' : ''}" data-bar-id="${escapeAttr(shape.id)}" style="left:${left}%;width:${barWidth}%">
               <span class="na-bar-label">${escapeHtml(shape.name)}</span>
               ${selected ? `<span class="na-bar-handle start" data-trim="start" data-layer-id="${escapeAttr(shape.id)}"></span><span class="na-bar-handle end" data-trim="end" data-layer-id="${escapeAttr(shape.id)}"></span>` : ''}
               ${keyframes}
@@ -1308,8 +1306,8 @@
     const anim = ensureAnimation(shape);
     const start = clamp01(Number(anim.rangeStart) / 100);
     const end = clamp01(Number(anim.rangeEnd) / 100);
-    const left = clamp(timelineProgressToPercent(Math.min(start, end)), -10, 110);
-    const right = clamp(timelineProgressToPercent(Math.max(start, end)), -10, 110);
+    const left = timelineProgressToPercent(Math.min(start, end));
+    const right = timelineProgressToPercent(Math.max(start, end));
     const bar = row.querySelector('[data-bar-id]');
     if (bar) {
       bar.style.left = `${left}%`;
