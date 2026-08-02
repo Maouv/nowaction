@@ -810,8 +810,11 @@
     if (state.scrollControlSource !== 'website-scroll') return;
     const maxScroll = Math.max(0, dom.websiteScrollRoot.scrollHeight - dom.websiteScrollRoot.clientHeight);
     state.progress = maxScroll <= 0 ? 0 : clamp01(dom.websiteScrollRoot.scrollTop / maxScroll);
+    recenterTimelineWindow(state.progress);
     dom.progressButton.textContent = formatPct(state.progress);
     updateTimelinePlayhead();
+    renderTimelineRuler();
+    renderTimelineRows();
     renderScene();
   }
 
@@ -834,6 +837,9 @@
       const deltaProgress = (state.previewSpeedPxPerSecond * delta) / maxScroll;
       const next = Math.min(1, state.progress + deltaProgress);
       setProgress(next, 'editor-play');
+      recenterTimelineWindow(next);
+      renderTimelineRuler();
+      renderTimelineRows();
       if (next >= 1) stopPlayback();
       else state.playRaf = requestAnimationFrame(step);
     };
@@ -1139,7 +1145,7 @@
   }
 
   function timelineVisibleEnd() {
-    return clamp01(state.timeline.visibleStart + 1 / state.timeline.zoom);
+    return state.timeline.visibleStart + 1 / state.timeline.zoom;
   }
 
   function timelineProgressToPercent(progress) {
@@ -1157,19 +1163,14 @@
   function setTimelineZoom(nextZoom, anchorProgress = state.progress, anchorRatio = .5) {
     const zoom = clamp(nextZoom, 1, 16);
     const span = 1 / zoom;
-    let start = anchorProgress - anchorRatio * span;
-    start = clamp(start, 0, 1 - span);
     state.timeline.zoom = zoom;
-    state.timeline.visibleStart = start;
+    state.timeline.visibleStart = anchorProgress - anchorRatio * span;
     renderContext(false);
   }
 
-  function ensureProgressVisible(progress, padding = .06) {
+  function recenterTimelineWindow(progress) {
     const span = 1 / state.timeline.zoom;
-    let start = state.timeline.visibleStart;
-    if (progress < start + span * padding) start = progress - span * padding;
-    if (progress > start + span * (1 - padding)) start = progress - span * (1 - padding);
-    state.timeline.visibleStart = clamp(start, 0, 1 - span);
+    state.timeline.visibleStart = progress - span / 2;
   }
 
   function layerTypeIconName(shape) {
@@ -1219,6 +1220,7 @@
     const ticks = [];
     for (let i = 0; i <= 4; i += 1) {
       const progress = start + (end - start) * (i / 4);
+      if (progress < 0 || progress > 1) continue;
       ticks.push(`<div class="na-ruler-tick" style="left:${i * 25}%"></div><div class="na-ruler-label" style="left:${i * 25}%">${formatPct(progress)}</div>`);
     }
     dom.timelineRuler.innerHTML = `${ticks.join('')}<div id="ruler-playhead" class="na-playhead-line"></div><div id="ruler-playhead-head" class="na-playhead-head"></div>`;
@@ -1243,6 +1245,7 @@
       const end = clamp01(Number(anim.rangeEnd) / 100);
       const left = timelineProgressToPercent(Math.min(start, end));
       const right = timelineProgressToPercent(Math.max(start, end));
+      if (right < -5 || left > 105) continue;
       const visibleLeft = clamp(left, -10, 110);
       const visibleRight = clamp(right, -10, 110);
       const barWidth = Math.max(0.5, visibleRight - visibleLeft);
@@ -1329,17 +1332,7 @@
   }
 
   function updateTimelinePlayhead() {
-    const pct = timelineProgressToPercent(state.progress);
-    const visible = pct >= 0 && pct <= 100;
-    $$('.na-playhead-line', dom.contextRoot).forEach((line) => {
-      line.style.left = `${pct}%`;
-      line.style.display = visible ? '' : 'none';
-    });
-    const head = $('#ruler-playhead-head');
-    if (head) {
-      head.style.left = `${pct}%`;
-      head.style.display = visible ? '' : 'none';
-    }
+    // ponytail: playhead fixed di CSS left:50%, tidak perlu JS override
   }
 
   function bindRulerGestures() {
@@ -1350,8 +1343,7 @@
     let pending = null;
     let pendingTimer = 0;
     const commitScrub = () => {
-      gesture = { type: 'scrub' };
-      setProgress(timelineClientXToProgress([...pointers.values()][0].x, ruler), 'timeline-scrub');
+      gesture = { type: 'scrub', lastX: [...pointers.values()][0].x };
     };
     const commitPinch = () => {
       const pair = [...pointers.values()];
@@ -1386,7 +1378,15 @@
         const zoom = gesture.startZoom * (Math.abs(pair[0].x - pair[1].x) / gesture.startDistance);
         setTimelineZoom(zoom, gesture.anchorProgress, gesture.anchorRatio);
       } else if (gesture?.type === 'scrub' && pointers.size === 1) {
-        setProgress(timelineClientXToProgress(event.clientX, ruler), 'timeline-scrub');
+        const rect = ruler.getBoundingClientRect();
+        const span = 1 / state.timeline.zoom;
+        const dx = event.clientX - gesture.lastX;
+        gesture.lastX = event.clientX;
+        state.timeline.visibleStart -= (dx / rect.width) * span;
+        const derivedProgress = clamp01(state.timeline.visibleStart + span / 2);
+        setProgress(derivedProgress, 'timeline-scrub');
+        renderTimelineRuler();
+        renderTimelineRows();
       }
     });
     const end = (event) => {
@@ -1440,7 +1440,6 @@
     $$('[data-bar-id]', dom.timelineSpacer).forEach((bar) => bar.addEventListener('pointerdown', beginBarGesture));
     $$('[data-trim]', dom.timelineSpacer).forEach((handle) => handle.addEventListener('pointerdown', beginTrimGesture));
     $$('.na-keyframe', dom.timelineSpacer).forEach((keyframe) => keyframe.addEventListener('pointerdown', beginKeyframeGesture));
-    $$('.na-track-cell', dom.timelineSpacer).forEach((track) => track.addEventListener('pointerdown', beginEmptyTrackGesture));
   }
 
   function beginReorderGesture(event) {
@@ -1652,7 +1651,7 @@
       else if (!moved) {
         state.selectedKeyframeId = keyframe.id;
         selectShape(shape.id, { openDock: false });
-        ensureProgressVisible(keyframe.at);
+        recenterTimelineWindow(keyframe.at);
         setProgress(keyframe.at, 'timeline-scrub');
       } else if (changed) markDirty();
       renderAll();
@@ -1662,37 +1661,6 @@
     button.addEventListener('pointermove', move);
     button.addEventListener('pointerup', end);
     button.addEventListener('pointercancel', cancel);
-  }
-
-  function beginEmptyTrackGesture(event) {
-    if (event.target !== event.currentTarget) return;
-    if (state.timeline.zoom <= 1) return;
-    const track = event.currentTarget;
-    track.setPointerCapture(event.pointerId);
-    const startX = event.clientX;
-    const startY = event.clientY;
-    const startVisible = state.timeline.visibleStart;
-    let lock = null;
-    const move = (ev) => {
-      const dx = ev.clientX - startX;
-      const dy = ev.clientY - startY;
-      if (!lock && Math.hypot(dx, dy) > 8) lock = Math.abs(dx) > Math.abs(dy) * 1.2 ? 'horizontal' : 'vertical';
-      if (lock !== 'horizontal') return;
-      ev.preventDefault();
-      const rect = track.getBoundingClientRect();
-      const span = 1 / state.timeline.zoom;
-      state.timeline.visibleStart = clamp(startVisible - (dx / rect.width) * span, 0, 1 - span);
-      renderTimelineRuler();
-      renderTimelineRows();
-    };
-    const end = () => {
-      track.removeEventListener('pointermove', move);
-      track.removeEventListener('pointerup', end);
-      track.removeEventListener('pointercancel', end);
-    };
-    track.addEventListener('pointermove', move);
-    track.addEventListener('pointerup', end);
-    track.addEventListener('pointercancel', end);
   }
 
   function getRelevantMarkers() {
@@ -1716,7 +1684,7 @@
     const epsilon = .001;
     let next = direction < 0 ? markers.filter((p) => p < state.progress - epsilon).at(-1) : markers.find((p) => p > state.progress + epsilon);
     if (next === undefined) next = direction < 0 ? 0 : 1;
-    ensureProgressVisible(next);
+    recenterTimelineWindow(next);
     setProgress(next, 'timeline-scrub');
     renderContext();
   }
@@ -1814,7 +1782,7 @@
       ? positions.filter((p) => p < state.progress - .001).at(-1)
       : positions.find((p) => p > state.progress + .001);
     if (next === undefined) return toast('No more keyframes');
-    ensureProgressVisible(next);
+    recenterTimelineWindow(next);
     setProgress(next, 'timeline-scrub');
     renderContext();
   }

@@ -332,6 +332,7 @@ button { -webkit-tap-highlight-color: transparent; }
 .na-keyframe.na-kf-selected::after { width: 13px; height: 13px; left: 7.5px; top: 7.5px; background: #fbbf24; }
 .na-playhead-line {
   position: absolute;
+  left: 50%;
   top: 0; bottom: 0;
   width: 2px;
   background: #f43f5e;
@@ -341,6 +342,7 @@ button { -webkit-tap-highlight-color: transparent; }
 }
 .na-playhead-head {
   position: absolute;
+  left: 50%;
   top: 0;
   width: 14px;
   height: 10px;
