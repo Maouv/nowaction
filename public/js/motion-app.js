@@ -1161,7 +1161,7 @@
   }
 
   function setTimelineZoom(nextZoom, anchorProgress = state.progress, anchorRatio = .5) {
-    const zoom = clamp(nextZoom, 1, 16);
+    const zoom = clamp(nextZoom, 0.25, 16);
     const span = 1 / zoom;
     state.timeline.zoom = zoom;
     state.timeline.visibleStart = clampVisibleStart(anchorProgress - anchorRatio * span);
